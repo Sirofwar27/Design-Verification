@@ -1,0 +1,52 @@
+Riviera-PRO 2023.04.112.8911(Linux64) 2024-12-07 22:44:03
+
+Elaboration top modules:
+Verilog Module                tb
+SystemVerilog Package         UnitScopePackage_1
+SystemVerilog Class           \*queue#([]bit) \
+SystemVerilog Class           Stimulus
+SystemVerilog Class           DUT
+SystemVerilog Class           Monitor
+SystemVerilog Class           *base_class
+SystemVerilog Class           linked_list
+SystemVerilog Class           Node
+SystemVerilog Class           \*queue#(Node) \
+
+
+---------------------------------------------------------------------------------------
+Verilog Module          | Library | Info | Compiler Version      | Compilation Options
+---------------------------------------------------------------------------------------
+tb                      | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+---------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------
+SystemVerilog Package   | Library | Info | Compiler Version      | Compilation Options
+---------------------------------------------------------------------------------------
+UnitScopePackage_1      | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+---------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------
+SystemVerilog Class     | Library | Info | Compiler Version      | Compilation Options
+---------------------------------------------------------------------------------------
+\*queue#([]bit) \       | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+Stimulus                | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+DUT                     | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+Monitor                 | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+*base_class             | vl      |      | 2023.04.112 (Linux64) | <unavailable>
+linked_list             | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+Node                    | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+\*queue#(Node) \        | work    |      | 2023.04.112 (Linux64) | -timescale 1ns/1ns
+---------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------
+Library                 | Comment
+---------------------------------------------------------------------------------------
+vl                      | Standard Verilog library
+work                    | None
+---------------------------------------------------------------------------------------
+
+
+Simulation Options: asim +access+r
+
+
+The performance of simulation is reduced. Version EDU Edition
