@@ -1,0 +1,50 @@
+module clock;
+  int seconds=0;
+  int minutes=0;
+  int hours=0;
+  
+  task automatic seconds_thread();
+    forever begin
+    #1;
+    seconds++;
+    if (seconds==60) begin
+      seconds=0;
+      minutes++;
+    end
+      $display("Time-> %02d : %02d: %02d", hours,minutes,seconds);
+    end
+  endtask
+  
+  task automatic minutes_thread();
+    forever begin
+    #1;
+      if (seconds==0) begin
+    if (minutes==60)begin
+      minutes=0;
+      hours++;
+    end
+    end
+    end
+  endtask
+  
+  task automatic hours_thread();
+    forever begin
+    #1;
+      if (minutes==0 && seconds==0)begin
+      if (hours==24)begin
+        hours=0;
+      end
+    end
+    end
+  endtask
+  
+  initial begin
+    fork
+      seconds_thread();
+      minutes_thread();
+      hours_thread();
+    join
+  end
+endmodule
+        
+
