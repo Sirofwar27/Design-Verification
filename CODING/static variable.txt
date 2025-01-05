@@ -1,0 +1,30 @@
+class transaction;
+  int id=0;
+  static int count=0;
+  
+  function new();
+  id=count;
+  count++;
+  endfunction
+  
+  function void display();
+    $display("id=%0p, count=%0p",id, count);
+  endfunction
+  
+endclass
+
+module tb;
+  
+  initial begin
+  transaction t1,t2,t3;
+  
+  t1=new();
+  t2=new();
+  t3=new();
+  
+  t1.display();
+  t2.display();
+  t3.display();
+ 
+  end
+endmodule

@@ -1,0 +1,42 @@
+class Testbench;
+    int transaction_id = 0; // Transaction identifier
+
+    // Constructor
+    function new();
+    endfunction
+
+    // Task to generate transactions
+    task generate_transactions();
+        fork
+            forever begin
+                transaction_id++;
+              if (transaction_id==10) break;
+                $display("Generated transaction: %0d at time %0t", transaction_id, $time);
+                check_transaction(transaction_id); // Spawn a dynamic thread
+                #10; // Delay between transactions
+            end
+        join_none
+    endtask
+
+    // Task to check a transaction
+    task check_transaction(int id);
+        fork
+            begin
+                $display("Checking transaction: %0d at time %0t", id, $time);
+                #20; // Simulate the time taken to process the transaction
+                $display("Transaction %0d completed at time %0t", id, $time);
+            end
+        join_none
+    endtask
+endclass
+
+module tb;
+    Testbench tb_instance;
+
+    initial begin
+        tb_instance = new();       // Create a testbench instance
+        tb_instance.generate_transactions(); // Start generating transactions
+        #100;                      // Run the simulation for 100 time units
+        $display("Simulation ends at time %0t", $time);
+    end
+endmodule

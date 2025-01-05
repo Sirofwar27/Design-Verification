@@ -1,0 +1,28 @@
+class exclude;
+
+    rand int val;
+    constraint c {
+        val inside {[0:10]};        
+    }
+  
+  constraint d{
+  !(val inside {5, 7, 9});   
+  }
+
+    function void display();
+        $display("The value is: %0d", val);
+    endfunction
+
+endclass
+
+module tb;
+    initial begin
+        exclude e = new();
+
+        if (e.randomize()) begin
+            e.display(); 
+        end else begin
+            $display("Randomization failed!");
+        end
+    end
+endmodule

@@ -1,0 +1,42 @@
+module tb;
+  
+  event rl,yl,gl;
+  
+  task automatic rl_task();
+    forever begin
+    ->rl;
+    wait(rl.triggered);
+    $display("red light is on for %0t",$time);
+      #10;
+    ->gl;
+    end
+  endtask
+  
+  task automatic gl_task();
+    forever begin
+      wait (gl.triggered);
+      $display("green light is on for %0t",$time);
+      #15;
+      ->yl;
+    end
+  endtask
+  
+  task automatic yl_task();
+    forever begin
+      wait (yl.triggered);
+      $display("yellow light is on for %0t",$time);
+            #5;
+      ->rl;
+    end
+  endtask
+  initial begin
+  fork 
+    rl_task();
+    gl_task();
+    yl_task();
+  join_none
+  #100;
+  $finish;
+  $display("task is finished");
+  end
+endmodule

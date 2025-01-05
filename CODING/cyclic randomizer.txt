@@ -1,0 +1,27 @@
+   
+      class CyclicRandomizer;
+    randc int index; // randc ensures values are not repeated until all are used
+    int values[] = '{10, 20, 30, 40};
+      
+        constraint c{
+          index inside {[0:3]};
+        }
+
+    function void display();
+        $display("Selected Value: %0d", values[index]);
+    endfunction
+endclass
+
+module randc_test;
+    initial begin
+        CyclicRandomizer obj = new();
+
+        for (int i = 0; i < 4; i++) begin
+            if (obj.randomize()) begin
+                obj.display(); // Selects a random value without repetition
+            end else begin
+                $display("Randomization failed!");
+            end
+        end
+    end
+endmodule

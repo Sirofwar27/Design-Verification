@@ -1,0 +1,29 @@
+class histrogram_example;
+  rand int value;
+  int value_lol[]='{0,1,2,3};
+  
+  constraint c{
+    value inside {value_lol};
+  }
+  
+  function void gen_histrogram();
+    int histrogram[4]='{default:0};
+    
+    for (int i=0;i<100;i++) begin
+      this.randomize();
+      histrogram[value]++;
+    end
+    
+    foreach(value_lol[i])begin
+      $display("value %0p apperas %0p times",value_lol[i],histrogram[value_lol[i]]);
+     end
+ endfunction
+endclass
+ 
+ module tb;
+   initial begin
+     histrogram_example h =new();
+     h.gen_histrogram();
+   end
+ endmodule
+   

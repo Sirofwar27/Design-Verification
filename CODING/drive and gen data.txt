@@ -1,0 +1,42 @@
+class gen;
+  int num_packets;
+  int packet_data[];
+  
+ //constructor
+  function new (int n);
+    num_packets=n;
+    packet_data=new[num_packets];//new[n] ?
+  endfunction
+  
+  
+  task run();
+    fork
+      gen_pack();
+      drive_pack();
+    join
+  endtask
+  
+  
+  task gen_pack();
+    for(int i=0;i<num_packets;i++)begin
+      packet_data[i]=$urandom_range(0,255);
+      $display("Generated packet [%0d]: %0d at time %0t",i,packet_data[i],$time);
+      #10;//why delay
+    end
+  endtask
+  
+  task drive_pack();
+    for (int i=0;i<num_packets;i++)begin
+      $display("drive packet [%0d]: %0d at time %0t",i,packet_data[i],$time);
+      #5;
+    end
+  endtask
+endclass
+  module tb;
+    initial begin
+      gen g =new(5);
+      g.run();
+      #100
+      $display("simulation ends");
+    end
+  endmodule

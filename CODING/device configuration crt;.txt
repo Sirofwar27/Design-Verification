@@ -1,0 +1,30 @@
+class ChannelConfig;
+    rand bit enable;         // Enable/disable the channel
+    rand int priorit;       // Priority level (1 to 10)
+    rand int bandwidth;      // Bandwidth allocation (1 to 100 Mbps)
+
+    // Constraints to ensure valid configurations
+    constraint valid_config {
+        priorit inside {[1:10]};
+        bandwidth inside {[1:100]};
+    }
+
+    function void display();
+        $display("Channel: Enable=%0d, Priority=%0d, Bandwidth=%0d Mbps", enable, priorit, bandwidth);
+    endfunction
+endclass
+
+module random_device_config;
+    initial begin
+        ChannelConfig ch;
+      for(int i=0;i<10;i++) begin
+            ch = new();
+            if (ch.randomize()) begin
+                $display("Channel %0d Configuration:", i);
+                ch.display();
+            end else begin
+                $display("Randomization failed for Channel %0d", i);
+            end
+        end
+    end
+endmodule

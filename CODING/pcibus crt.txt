@@ -1,0 +1,30 @@
+class pcibus;
+  rand int device_number;
+  rand bit is_master[];
+  
+  constraint C{
+    device_number inside {[4:8]};
+    is_master.size==device_number;
+  
+  }
+  
+  function void display();
+    for(int i=0;i<device_number;i++) begin
+      $display("device number[%0d] -- %s",i+1,is_master[i]? "Master":"Slave");
+    end
+  endfunction
+  
+endclass
+
+module tb;
+  initial begin
+    pcibus p=new();
+    if (p.randomize()) begin
+      $display ("No of devices generated in the random process = %0d",p.device_number);
+      p.display();
+    end
+    else begin
+      $display("randomization failed");
+    end
+  end
+endmodule

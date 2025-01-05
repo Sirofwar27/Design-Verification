@@ -1,0 +1,29 @@
+
+class packet;
+  rand bit[7:0] address;
+  rand bit[15:0] data;
+  
+  constraint valid_packet{
+    address inside {[0:100]};
+    data inside {[0:200]};
+  }
+  
+  function void display();
+    $display("data is [%0p] & address is [%0p]",data,address); 
+  endfunction
+  
+endclass
+  
+  module tb;
+    initial begin
+      packet p=new();
+      
+      for (int i=0;i<5;i++) begin
+        if ( p.randomize()) begin
+      p.display();
+     end else begin
+       $display("randomization failed");
+     end
+      end
+    end
+  endmodule
