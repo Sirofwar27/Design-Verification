@@ -1,0 +1,17 @@
+//multiple event loops
+
+module tb;
+  event lol[3];
+  initial begin
+    fork
+     #5 ->lol[0];
+      #15 ->lol[1];
+      #25 ->lol[2];
+    join_none
+    
+    foreach(lol[i]) begin
+      wait(lol[i].triggered);
+      $display("the lols are executed at %0t", $time);
+    end
+  end
+endmodule

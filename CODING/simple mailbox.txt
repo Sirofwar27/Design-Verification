@@ -1,0 +1,37 @@
+//simple mailbox
+class generator;
+  int data=12;
+  mailbox mbox;
+  task automatic run();
+  mbox.put(data);
+  $display("data %0d is sent",data);
+  endtask
+endclass
+
+class driver;
+  int datac=0;
+  mailbox mbox;
+  
+  task automatic run();//see for other name
+    mbox.get(datac);
+    $display("data %0d is received",datac);
+  endtask
+  
+endclass
+
+module tb;
+  generator gen;
+  driver drv;
+  mailbox mbox;
+initial begin
+  gen=new();
+  drv=new();
+  mbox=new();
+  
+  gen.mbox=mbox;
+  drv.mbox=mbox;
+  
+  gen.run();
+  drv.run();
+end
+endmodule

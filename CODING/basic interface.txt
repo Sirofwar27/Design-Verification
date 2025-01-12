@@ -1,0 +1,35 @@
+// basic interface
+interface xd;
+  logic clk,rst;
+  logic [1:0] request;
+  logic [1:0] grant;
+endinterface
+
+module dut
+  (xd ff);//intf+inst
+endmodule
+
+module tb;
+  xd ff();//intf+inst
+  
+  dut d(.ff(ff)); //format
+  
+ initial begin
+   ff.clk=0;
+   forever #5 ff.clk=~ff.clk;
+
+ end 
+//   initial begin
+//     $dumpfile("dump.vcd");
+//    $dumpvars;
+//   end
+ initial begin
+   ff.rst =0;
+   ff.request =2;
+   ff.request =1;
+   $display("%0p,%0p,%0p",ff.request,ff.rst,ff.clk);
+   $finish;
+ end
+endmodule
+  
+  

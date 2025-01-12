@@ -1,0 +1,41 @@
+//semaphore advanced
+
+module tb;
+  semaphore sem;
+
+  // Task to randomly add keys to the semaphore
+  task automatic randomize();
+    for (int i = 0; i < 10; i++) begin
+      #10; // Add delay for better synchronization
+      if ($urandom_range(0, 1)) begin
+        sem.put(1);
+        $display("Key added at time %0t!", $time);
+      end else begin
+        $display("No key added at time %0t!", $time);
+      end
+    end
+  endtask
+
+  // Task to try to access keys in the semaphore
+  task automatic wait_10();
+    for (int i = 1; i <= 10; i++) begin
+      #10; // Wait 10ns between each attempt
+      if (sem.try_get(1)) begin
+        $display("Key accessed at time %0t on attempt %0d!", $time, i);
+      end else begin
+        $display("No key accessed at time %0t on attempt %0d!", $time, i);
+      end
+    end
+  endtask
+
+  // Testbench initial block
+  initial begin
+    sem = new(0); // Initialize semaphore with 0 keys
+    fork
+      randomize(); // Task to add keys randomly
+      wait_10();   // Task to try accessing keys
+    join_none
+    #200; // Wait for 200ns to allow tasks to finish
+    $finish;
+  end
+endmodule

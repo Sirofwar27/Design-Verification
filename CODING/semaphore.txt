@@ -1,0 +1,28 @@
+//semaphore
+
+module tb;
+  semaphore bus_semaphore;
+  
+ initial begin
+   bus_semaphore=new(1);
+ end
+  
+ initial begin
+    fork
+    device_thread(1);
+    device_thread(2);
+    device_thread(3);
+    join
+  end
+  
+  task automatic device_thread(int id);
+    $display("device %0d requesting at time %0t", id,$time);
+    bus_semaphore.get(1);
+    $display("device %0d requesting at time %0t",id, $time);
+   #10 bus_semaphore.put(1);
+    $display("device %0d releasing at time %0t",id,$time);
+  endtask
+  
+ 
+  
+endmodule

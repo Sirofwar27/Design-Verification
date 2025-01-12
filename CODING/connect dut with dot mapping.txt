@@ -1,0 +1,38 @@
+//connect dut with dot mapping
+
+module arbiter (
+    input logic clk,
+    input logic rst,
+    input logic [1:0] request,
+    output logic [1:0] grant
+);
+    // Arbiter logic (not shown for simplicity)
+endmodule
+module tb;
+    logic clk, rst;
+    logic [1:0] request;
+    logic [1:0] grant;
+
+    arbiter dut (
+        .clk(clk),
+        .rst(rst),
+        .request(request),
+        .grant(grant)
+    );
+
+    // Clock generation
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
+
+    // Stimulus
+    initial begin
+        rst = 1; #10;
+        rst = 0;
+        request = 2'b01; #10;
+        request = 2'b10; #10;
+        request = 2'b11; #10;
+        $finish;
+    end
+endmodule

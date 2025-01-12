@@ -1,0 +1,33 @@
+//bounded mailbox
+int value = 1;  
+    module tb;
+  mailbox #(int) mbox;  // Create a mailbox for integers
+
+  initial begin
+    mbox = new(1);  // Bounded mailbox with size 1
+    fork
+      producer();
+      consumer();
+    join
+    #50;  // Simulation end time
+    $finish;
+  end
+
+  task automatic producer();
+// Declare `value` local to the producer
+    repeat(3) begin
+      mbox.put(value);  // Put the value in the mailbox
+      $display("Producer: Sent value %0d at time %0t", value, $time);
+      value++;
+    end
+  endtask
+
+  task automatic consumer();
+//     int value;  // Local variable to store received value
+    forever begin
+      #5;  // Simulate processing delay
+      mbox.get(value);  // Get value from the mailbox
+      $display("Consumer: Received value %0d at time %0t", value, $time);
+    end
+  endtask
+endmodule

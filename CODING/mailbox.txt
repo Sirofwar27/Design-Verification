@@ -1,0 +1,54 @@
+//mailbox
+
+class transaction;
+  rand int id;//why rand?
+  rand int data;
+  
+  function new();
+    this.id=0;
+    this.data=0;
+  endfunction
+  
+  function void display();
+    $display("Transaction id :%0d , Data : %0d ",id+1,data);
+  endfunction
+  
+endclass
+
+module tb;
+  mailbox#(transaction) mbox;//is it the method to write it.
+  transaction t;
+  initial begin
+//     t=new();
+    mbox=new();
+    
+    fork
+      generator_thread();
+      driver_thread();
+    join_none
+  end
+  
+  task automatic generator_thread();
+    for (int i=0;i<5;i++) begin
+      t=new();
+      t.id=i;
+      t.data=$urandom_range(0,100);
+      mbox.put(t);
+      $display("Generator: added transaction id %0d at time %0t",t.id+1,$time);
+      #10;
+    end
+  endtask
+  
+  task automatic driver_thread();
+    transaction rx;
+    for (int i=0;i<5;i++) begin
+      rx=new();
+      mbox.get(rx);
+      $display("Driver: Rcvd Transaction id %0d at time %0t",rx.id+1,$time);
+      rx.display();
+      #15;
+    end
+  endtask
+  
+endmodule
+      

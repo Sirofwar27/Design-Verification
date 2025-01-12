@@ -1,0 +1,28 @@
+//PASSING EVENTS as arguments
+
+class transactor;
+  event complete;
+  
+  function new(event complete);
+    this.complete=complete;
+  endfunction
+  
+  task perform_transactions();
+    $display(" event is started at %0t", $time);
+    #10;
+    ->complete;
+    $display("transaction is completed at %0t", $time);
+  endtask
+endclass
+
+module tb;
+  event lol;
+  initial begin
+    transactor t=new(lol);
+//  fork
+   t.perform_transactions();
+   wait(lol.triggered);
+   
+//  join
+  end
+endmodule

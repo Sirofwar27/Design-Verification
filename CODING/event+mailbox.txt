@@ -1,0 +1,35 @@
+//event+mailbox
+
+mailbox mbox;
+event product;
+int value=1;
+
+  task automatic producer();
+    forever begin
+      mbox.put(value);
+      $display("value %0d is sent at %0t",value,$time);
+      @product;
+      value++;
+    end
+  endtask
+ 
+  task automatic consumer();
+    forever begin
+      mbox.get(value);
+      $display("value %0d is received at %0t",value,$time);
+      #10;
+      ->product;
+    end
+  endtask
+
+module tb;
+  initial begin
+    mbox=new();// can we make it global?=n0,it ve to be in simulation.
+  fork
+    producer();
+    consumer();
+  join_none
+    #100;
+    $finish;
+   end
+endmodule
