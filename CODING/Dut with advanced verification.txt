@@ -1,0 +1,101 @@
+//Dut with advanced verification
+
+module dut (
+  input logic [7:0] a,
+  input logic [7:0] b,
+  output logic [7:0] sum
+);
+  assign sum = a + b;
+endmodule
+
+class Transaction;
+  rand bit [7:0] a, b;  // Inputs to the DUT
+  bit [7:0] sum;        // Expected output (for self-checking)
+
+  // Compute expected sum
+  function void calculate_sum();
+    sum = a + b;
+  endfunction
+
+  // Display transaction details
+  function void display();
+    $display("Transaction -> a: %0d, b: %0d, expected sum: %0d", a, b, sum);
+  endfunction
+endclass
+
+class Generator;
+  mailbox #(Transaction) gen2drv; // Mailbox for communication with the driver
+
+  function new(mailbox #(Transaction) mbox);
+    gen2drv = mbox;
+  endfunction
+
+  task run();
+    Transaction tr;
+    for (int i = 0; i < 10; i++) begin
+      tr = new();
+      tr.randomize();
+      tr.calculate_sum(); // Calculate expected sum
+      gen2drv.put(tr);    // Send transaction to the driver via mailbox
+    end
+  endtask
+endclass
+
+class Driver;
+  mailbox #(Transaction) gen2drv; // Mailbox for receiving transactions
+  virtual dut_if dut_if;          // Virtual interface to the DUT
+
+  function new(mailbox #(Transaction) mbox, virtual dut_if inf);
+    gen2drv = mbox;
+    dut_if = inf;
+  endfunction
+
+  task drive();
+    Transaction tr;
+    while (1) begin
+      gen2drv.get(tr); // Retrieve transaction from the mailbox
+      tr.display();    // Display transaction details
+      dut_if.a = tr.a; // Drive inputs to the DUT
+      dut_if.b = tr.b;
+      #5; // Wait for DUT to process the inputs
+      if (dut_if.sum !== tr.sum)
+        $display("Mismatch! DUT sum: %0d, Expected: %0d", dut_if.sum, tr.sum);
+      else
+        $display("Match! DUT sum: %0d", dut_if.sum);
+    end
+  endtask
+endclass
+
+interface dut_if;
+  logic [7:0] a;
+  logic [7:0] b;
+  logic [7:0] sum;
+endinterface
+
+module tb;
+  mailbox #(Transaction) gen2drv;
+  dut_if intf();
+  Generator gen;
+  Driver drv;
+  dut dut_instance (.a(intf.a), .b(intf.b), .sum(intf.sum)); // DUT instance
+
+  initial begin
+    gen2drv = new();            // Create mailbox
+    gen = new(gen2drv);         // Create generator
+    drv = new(gen2drv, intf);   // Create driver
+
+    // Run generator and driver in parallel
+    fork
+      gen.run();
+      drv.drive();
+    join
+  end
+endmodule
+
+
+
+
+
+
+      
+      

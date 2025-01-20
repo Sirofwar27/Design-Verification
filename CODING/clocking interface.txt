@@ -1,0 +1,72 @@
+//clocking interface
+interface counter_if(input logic clk);
+    logic rst;         // Reset signal
+    logic enable;      // Enable signal
+    logic [3:0] count; // 4-bit counter value
+
+    // Clocking block for synchronous signals
+    clocking cb @(posedge clk);
+        input count;   // DUT outputs count
+        output rst;    // Testbench drives reset
+        output enable; // Testbench drives enable
+    endclocking
+endinterface
+
+module counter(counter_if c_if);
+  
+    always_ff @(posedge c_if.clk or posedge c_if.rst) begin
+        if (c_if.rst)
+            c_if.count <= 4'b0000; // Reset counter to 0
+        else if (c_if.enable)
+            c_if.count <= c_if.count + 1; // Increment counter
+    end
+endmodule
+
+module tb;
+    logic clk;
+    counter_if c_if(clk); // Interface instance
+
+    counter dut(c_if); // DUT connected to the interface
+
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk; // Generate clock with 10ns period
+    end
+
+    initial begin
+        // Reset the counter
+        c_if.cb.rst <= 1;
+        $display("Time: %0t Reset asserted, count = %0d", $time, c_if.cb.count);
+        @(posedge clk);
+
+        // Deassert reset
+        c_if.cb.rst <= 0;
+        $display("Time: %0t Reset deasserted, count = %0d", $time, c_if.cb.count);
+
+        // Enable the counter
+        c_if.cb.enable <= 1;
+        repeat(5) begin
+            @(posedge clk);
+            $display("Time: %0t Enable = %0b, count = %0d", $time, c_if.cb.count);
+        end
+
+        // Disable the counter
+        c_if.cb.enable <= 0;
+        repeat(3) begin
+            @(posedge clk);
+          $display("Time: %0t Enable = %0b, count = %0d", $time, c_if.cb.count);
+        end
+
+        // Enable the counter again
+        c_if.cb.enable <= 1;
+        repeat(4) begin
+            @(posedge clk);
+            $display("Time: %0t Enable = %0b, count = %0d", $time,  c_if.cb.count);
+        end
+
+        // Finish the simulation
+        #20;
+        $display("Simulation ends at time %0t", $time);
+        $finish;
+    end
+endmodule

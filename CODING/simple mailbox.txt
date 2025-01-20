@@ -2,10 +2,12 @@
 class generator;
   int data=12;
   mailbox mbox;
+
   task automatic run();
   mbox.put(data);
   $display("data %0d is sent",data);
   endtask
+
 endclass
 
 class driver;

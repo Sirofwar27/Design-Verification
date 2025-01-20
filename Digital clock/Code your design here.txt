@@ -1,0 +1,136 @@
+typedef enum bit[1:0]{
+  add=2'b00,
+  sub=2'b01,
+  invert=2'b10,
+  reduction=2'b11
+}opcode;
+
+class DUT;
+  
+  function bit signed [0:4] op(bit signed [0:3] a, b, bit rst, opcode opcode);
+    if (!rst) begin
+      case (opcode)
+        add: return a + b;
+        sub: return a - b;
+        invert: return ~a & 5'b01111;
+        reduction: return |b;
+      endcase
+    end
+    return 0;  // Reset case
+  endfunction
+endclass
+
+typedef struct packed {
+  bit signed [3:0] a;
+  bit signed [3:0] b;
+  opcode op;
+  bit signed [4:0] result;
+} data_packet;
+
+class Generator;
+  mailbox #(data_packet) gen_mb;
+
+  function new(mailbox #(data_packet) m);
+    gen_mb = m;
+  endfunction
+
+  task generate_data();
+    data_packet packet;
+
+    forever begin
+      packet.a = $urandom_range(-8, 7);
+      packet.b = $urandom_range(-8, 7);
+      packet.op = opcode'($urandom_range(0, 3));
+      gen_mb.put(packet); 
+      #10; 
+    end
+  endtask
+endclass
+class Monitor;
+  mailbox #(data_packet) in_mb;
+
+
+  function new(mailbox #(data_packet) in_mb);
+    this.in_mb = in_mb;
+  endfunction
+
+  // Reference model (pseudo-DUT)
+  function bit signed [0:4] pseudo_dut(bit signed [0:3] a, b, opcode opcode);
+    case (opcode)
+      add: return a + b;
+      sub: return a - b;
+      invert: return ~a & 5'b01111;
+      reduction: return |b;
+      default: return 0;
+    endcase
+  endfunction
+
+  task run();
+    data_packet packet;
+    bit signed [0:4] expected_out;
+
+    forever begin
+      in_mb.get(packet);
+   
+      expected_out = pseudo_dut(packet.a, packet.b, packet.op);
+
+      $display("# MONITOR: (%0d, %0d, %s) -> DUT Output: %0d, Expected: %0d -> %s",
+               packet.a, packet.b, packet.op.name(),
+               packet.result, expected_out,
+               (packet.result == expected_out) ? "PASS" : "FAIL");
+    end
+  endtask
+endclass
+class Driver;
+  mailbox #(data_packet) in_mb;   
+  mailbox #(data_packet) out_mb;  
+  DUT dut;                        
+
+  function new(mailbox #(data_packet) in_mb, mailbox #(data_packet) out_mb);
+    this.in_mb = in_mb;
+    this.out_mb = out_mb;
+    this.dut = new(); 
+  endfunction
+  bit signed [0:4] dut_result;
+  task run();
+    data_packet packet;
+    forever begin
+
+      in_mb.get(packet);
+
+      dut_result = dut.op(packet.a, packet.b, 0, packet.op);
+
+      packet.result = dut_result;
+
+      out_mb.put(packet);
+    end
+  endtask
+endclass
+
+`include "generator.sv"
+`include "monitor.sv"
+`include "driver.sv"
+module Testbench;
+  mailbox #(data_packet) gen_to_drv_mb, drv_to_mon_mb;
+  Generator gen;
+  Driver drv;
+  Monitor mon;
+
+  initial begin
+    gen_to_drv_mb = new();
+    drv_to_mon_mb = new();
+
+    gen = new(gen_to_drv_mb);
+    drv = new(gen_to_drv_mb, drv_to_mon_mb);
+    mon = new(drv_to_mon_mb);
+
+    fork
+      gen.generate_data();
+      drv.run();
+      mon.run();
+    join_none
+
+    #1000 $finish;
+  end
+endmodule
+

@@ -1,0 +1,159 @@
+//ALU verification using transaction class
+
+typedef enum bit[1:0]{
+  add=2'b00,
+  sub=2'b01,
+  invert=2'b10,
+  reduction=2'b11
+}opcode;
+
+class DUT;
+  
+  function bit signed [0:4] op(bit signed [0:3] a, b, bit rst, opcode opcode);
+    if (!rst) begin
+      case (opcode)
+        add: return a + b;
+        sub: return a - b;
+        invert: return ~a & 5'b01111;
+        reduction: return |b;
+      endcase
+    end
+    return 0;  // Reset case
+  endfunction
+endclass
+
+ class transaction;
+  // Fields for the transaction
+  rand bit signed [0:3] a;
+  rand bit signed [0:3] b;
+  rand opcode op;
+  rand bit rst;
+  bit signed [0:4] result;
+
+  // Constraints for randomization
+  constraint valid_op {
+    op inside {add, sub, invert, reduction};
+  }
+
+  constraint valid_range {
+    a dist {[-8:-1]:/90,[0:7]:/10};
+    b dist {[-8:-1]:/10,[0:7]:/90};
+  }
+
+  // Display the transaction for debugging
+  function void display();
+    $display("Transaction: a=%0d, b=%0d, op=%s", a, b, op.name());
+  endfunction
+endclass
+
+`include "transaction.sv"
+class generator;
+  mailbox#(transaction) gen_mb;
+
+  function new(mailbox#(transaction) x);
+    gen_mb = x;
+  endfunction
+
+  task generate_random_data();
+    transaction packet; // Use the transaction class
+    forever begin
+      // Create a new transaction and randomize its values
+      packet = new();
+      if (packet.randomize()) begin
+        gen_mb.put(packet); 
+//         packet.display();  
+      end else begin
+        $display("ERROR: Randomization failed for transaction.");
+      end
+      #10; 
+    end
+  endtask
+endclass
+class driver;
+  mailbox#(transaction) drv_in;
+  mailbox#(transaction) drv_out;
+  DUT d;
+
+  function new(mailbox#(transaction) m, mailbox #(transaction) n);
+    drv_in = m;
+    drv_out = n;
+    this.d = new();
+  endfunction
+
+  task drive();
+    transaction packet;
+    forever begin
+      drv_in.get(packet); // Get the transaction from the mailbox
+      packet.result = d.op(packet.a, packet.b, 0, packet.op); // Calculate the DUT result
+      drv_out.put(packet); // Send the updated transaction to the next stage
+    end
+  endtask
+endclass
+class monitor;
+  mailbox#(transaction) mon_in;
+
+  function new(mailbox#(transaction) c);
+    mon_in = c;
+  endfunction
+
+  function bit signed [0:4] psedu_dut(bit signed [0:3] a, b, opcode x);
+    case (x)
+      add: return a + b;
+      sub: return a - b;
+      invert: return ~a & 5'b01111;
+      reduction: return |b;
+      default: return 0;
+    endcase
+  endfunction
+
+  task compare();
+    transaction packet;
+    bit signed [0:4] expected;
+    forever begin
+      mon_in.get(packet); // Get the transaction from the mailbox
+       expected = psedu_dut(packet.a, packet.b, packet.op); // Compute expected result
+      $display("#MONITOR: a=%0d[%0b], b=%0d[%0b], op=%s -> DUT Output=%0d[%0b], Expected=%0d[%0b] -> %s",
+               packet.a,packet.a, packet.b,packet.b, packet.op.name(), packet.result, packet.result, expected, expected,
+               (packet.result == expected) ? "PASS" : "FAIL");
+    end
+  endtask
+endclass
+`include "generator.sv"
+`include "driver.sv"
+`include "monitor.sv"
+// `include "transaction.sv"
+
+
+module testbench;
+  mailbox#(transaction) gen2drv, drv2mon;
+  generator gen;
+  driver drv;
+  monitor mon;
+
+  initial begin
+    gen2drv = new();
+    drv2mon = new();
+
+    gen = new(gen2drv);
+    drv = new(gen2drv, drv2mon);
+    mon = new(drv2mon);
+
+    fork
+        mon.compare();
+      gen.generate_random_data();
+      drv.drive();
+    
+    join_none
+
+    #1000 $finish;
+  end
+endmodule
+
+
+
+
+
+
+
+
+

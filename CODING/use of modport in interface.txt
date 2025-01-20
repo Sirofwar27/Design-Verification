@@ -1,0 +1,49 @@
+//use of modport in interface
+  interface arb_if;
+    logic clk, rst;
+    logic [1:0] request;  // Request signals
+    logic [1:0] grant;// Grant signals
+    
+    // Modport for DUT (Device Under Test)
+    modport DUT (input clk, rst, request, output grant);
+
+    // Modport for Testbench (TB)
+    modport TB (output clk, rst, request, input grant);
+endinterface
+
+
+  
+module arbiter(arb_if arb);
+    // Signals are accessed using arb.<signal_name>
+    always_ff @(posedge arb.clk or posedge arb.rst) begin
+        if (arb.rst)
+            arb.grant <= 0;
+        else
+            arb.grant <= arb.request; // Simple logic for demonstration
+    end
+endmodule
+module tb;
+    arb_if arb(); // Interface instance
+
+    // DUT instantiation with interface
+    arbiter dut(.arb(arb));
+
+    // Clock generation
+    initial begin
+        arb.clk = 0;
+        forever #5 arb.clk = ~arb.clk;
+    end
+
+    // Test logic
+    initial begin
+        arb.rst = 1;
+        #10 arb.rst = 0;
+
+        arb.request = 2'b01;
+        #20 arb.request = 2'b10;
+        #20 arb.request = 2'b11;
+
+        #50;
+        $finish;
+    end
+endmodule

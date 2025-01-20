@@ -1,0 +1,132 @@
+// ALU Verification using mailbox
+typedef enum bit[1:0]{
+  add=2'b00,
+  sub=2'b01,
+  invert=2'b10,
+  reduction=2'b11
+}opcode;
+
+class DUT;
+  
+  function bit signed [0:4] op(bit signed [0:3] a, b, bit rst, opcode opcode);
+    if (!rst) begin
+      case (opcode)
+        add: return a + b;
+        sub: return a - b;
+        invert: return ~a & 5'b01111;
+        reduction: return |b;
+      endcase
+    end
+    return 0;  // Reset case
+  endfunction
+endclass
+
+typedef struct packed {
+  bit signed [0:3] a;
+  bit signed [0:3] b;
+  opcode op;
+  bit signed  [0:4] result;
+} data;
+
+class generator;
+  mailbox#(data) gen_mb;
+  
+  function new (mailbox#(data) x);
+    gen_mb=x;
+  endfunction
+  
+  task generate_random_data();
+    data packet;
+    
+    forever begin
+    packet.a=$urandom_range(-8,7);
+    packet.b=$urandom_range(-8,7);
+      packet.op=opcode'($urandom_range(0,3));
+    
+    gen_mb.put(packet);
+      #10;
+    end
+   endtask
+endclass
+
+class driver;
+  mailbox#(data) drv_in;
+  mailbox#(data) drv_out;
+  DUT d;
+  
+  function new(mailbox#(data) m, mailbox #(data) n);
+    drv_in=m;
+    drv_out=n;
+    this.d=new();
+  endfunction
+  
+  bit signed [0:4] dut_result;
+  
+  task drive();
+    data packet;
+    forever begin
+    drv_in.get(packet);
+    dut_result= d.op(packet.a,packet.b,0,packet.op);
+    packet.result=dut_result;
+    drv_out.put(packet);
+    end
+  endtask
+endclass
+    
+class monitor;
+  mailbox#(data) mon_in;
+  function new(mailbox#(data) c);
+    mon_in=c;
+  endfunction
+  
+  function bit signed [0:4] psedu_dut (bit signed [0:3] a, b, opcode x);
+    case(x)
+      add: return a+b;
+      sub: return a-b;
+      invert: return ~a & 5'b01111;
+      reduction: return |b;
+      default:return 0;
+    endcase
+  endfunction
+  
+  task compare();
+    data packet;
+    bit signed[0:4] psedu_dut_result;
+    forever begin
+      mon_in.get(packet);
+        psedu_dut_result = psedu_dut(packet.a,packet.b,packet.op);
+      $display("#MONITOR : (%0d, %0d, %s) -> DUT Output : %0d, Expected %0d -> %s",
+               packet.a, packet.b, packet.op.name(), packet.result,psedu_dut_result,(packet.result==psedu_dut_result) ? "PASS" : "FAIL"	);
+    end
+  endtask
+  endclass
+
+
+`include "generator.sv"
+`include "monitor.sv"
+`include "driver.sv"
+
+module testbench;
+  mailbox #(data) gen2drv, drv2mon;
+  generator gen;
+  monitor mon;
+  driver drv;
+  
+  initial begin
+    gen2drv=new();
+    drv2mon= new();
+    
+    gen =new (gen2drv);
+    drv=new (gen2drv,drv2mon);
+    mon= new(drv2mon);
+    
+    fork
+      gen.generate_random_data();
+      drv.drive();
+      mon.compare();
+    join_none
+    
+    #1000;
+    $finish;
+  end
+endmodule

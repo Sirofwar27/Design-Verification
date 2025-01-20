@@ -1,0 +1,117 @@
+ypedef enum bit[1:0]{
+  add=2'b00,
+  sub=2'b01,
+  invert=2'b10,
+  reduction=2'b11
+}opcode;               //first, i declared the operation using enum
+
+class stim;
+  rand bit signed [3:0] x,y;
+  rand opcode op;
+  
+    function void generate_input();
+      randomize();
+endfunction
+
+function void set_direct_input(bit signed [3:0] direct_x, bit signed [3:0] direct_y, opcode direct_op);
+    x = direct_x;
+    y = direct_y;
+    op = direct_op;
+  endfunction
+endclass             //second, generate random inputs and opcodes for test in stim
+  
+class dut;
+  bit signed [4:0] z;
+  
+   function void reset_dut();
+    z = 5'b00000; // Reset the output to default
+  endfunction
+  
+  
+  function void operation (bit signed [3:0] x, bit signed [3:0] y, opcode op);
+    case(op)
+      add: z=x+y;
+      sub: z=x-y;
+      invert: z=~x;
+      reduction: z=|y;
+      default:z= 5'b00000;
+    endcase
+  endfunction
+endclass                 //3, in DUT all the operations are performed
+
+class monitor;
+  
+  function void reset_monitor();
+    $display("Monitor: System in reset mode, no operation performed.");
+  endfunction
+  
+  function void check(bit signed[3:0] x, bit signed [3:0] y, opcode op,bit signed [4:0]z);
+      bit [4:0] expz;
+    case(op)
+      add:expz=x+y;
+      sub:expz=x-y;
+      invert:expz=~x;
+      reduction:expz=|y;
+      default:z= 5'b00000;
+    endcase
+      if (z==expz) begin
+        $display("pass x[%0d], y[%0d], op[%0b], z[%0d]", x,y,op,z);
+      end
+      else begin
+        $display("fail x[%0d], y[%0d], op[%0b], z[%0d], expected [%0d]", x,y,op,z,expz);
+      end
+  endfunction
+endclass            //4, in monitor i create a variable expz and again do the operations, then i checked  
+                    // it with the operations performed in DUT.
+//ALU verification
+
+module testbench;
+  stim s;
+  dut d;
+  monitor m;
+  bit reset;
+  
+      
+  
+  initial begin
+    s=new();
+    d=new();
+    m=new();    //5.create object and allocate memory for them
+    
+    
+    reset=1;
+     //after 10 timeunit,reset equals 0, in active high input becomes reset
+    d.reset_dut();
+    m.reset_monitor();
+    #10 ;
+    
+    //reset = 0; 
+    
+    
+    // Direct Testing
+    $display("Direct Testing:");
+    if(!reset) begin
+    s.set_direct_input(7, 7,add);       
+    d.operation(s.x, s.y, s.op);
+    m.check(s.x, s.y, s.op, d.z);
+    end
+    else begin
+        $display (" in active high reset mode");
+      end
+    
+    $display("random testing: ");
+    
+    repeat (15) begin
+      s.generate_input();
+      if (!reset) begin
+        d.operation(s.x,s.y,s.op);
+        m.check(s.x,s.y,s.op,d.z);
+      end
+      
+      else begin
+        $display (" in active high reset mode");
+      end
+    end
+$finish;
+  end
+endmodule

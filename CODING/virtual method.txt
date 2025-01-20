@@ -1,0 +1,36 @@
+// virtual method
+class BaseClass;
+    function void nonVirtualMethod();
+        $display("BaseClass non-virtual method.");
+    endfunction
+
+    virtual function void virtualMethod();
+        $display("BaseClass virtual method.");
+    endfunction
+endclass
+
+class DerivedClass extends BaseClass;
+    function void nonVirtualMethod();
+        $display("DerivedClass non-virtual method.");
+    endfunction
+
+    virtual function void virtualMethod();
+        $display("DerivedClass virtual method.");
+    endfunction
+endclass
+
+module tb;
+    initial begin
+        BaseClass base;
+        DerivedClass d;
+      d = new();
+      base=d;
+
+        // Non-virtual method: Executes BaseClass version
+        base.nonVirtualMethod(); // Output: BaseClass non-virtual method.
+
+        // Virtual method: Executes DerivedClass version
+        base.virtualMethod(); // Output: DerivedClass virtual method.
+    end
+endmodule
+

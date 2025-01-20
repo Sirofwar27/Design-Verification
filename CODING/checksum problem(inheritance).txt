@@ -1,0 +1,46 @@
+//checksum problem(inheritance)
+class transaction;
+  rand bit [3:0] data;
+  rand bit [3:0] addr;
+  rand bit write_enable;
+  
+  constraint c{
+  data>=0;
+  data<=10;
+  
+ addr >=2;
+ addr<=11;
+  
+  }
+  
+  function int checksum();//checksum is a kind of secret code for data communication
+    return data+addr+write_enable;
+  endfunction
+endclass
+
+class inject_error extends transaction;
+  rand bit error_checksum;
+  function int checksum(); // OVERRIDE it as we will modify it
+    if (error_checksum) begin
+      return data+addr+write_enable+$urandom_range(1,100);//$urandom is our error
+    end
+      else begin
+        return super.checksum();
+      end
+endfunction
+endclass
+        
+module tb;
+  transaction t;
+  inject_error i;
+initial begin
+  t=new();
+  t.randomize();
+  $display("good transaction-> data: %0p, addr: %0p, enable: %0p, checksum: %0p ", t.data,t.addr,t.write_enable,t.checksum());
+  repeat(15) begin 
+  i=new();
+  i.randomize();
+    $display("bad transaction -> data: %0p, addr: %0p, enable: %0p, error checking %0p, checksum: %0p",i.data,i.addr,i.write_enable,i.error_checksum, i.checksum());
+  end
+end
+endmodule
