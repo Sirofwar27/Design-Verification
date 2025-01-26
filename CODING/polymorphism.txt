@@ -1,0 +1,40 @@
+//polymorphism
+class Animal;
+    // Virtual method to be overridden by derived classes
+    virtual function void speak();
+        $display("Animal speaks.");
+    endfunction
+endclass
+
+class Dog extends Animal;
+    // Override the `speak` method
+    virtual function void speak();
+        $display("Dog barks.");
+    endfunction
+endclass
+
+class Cat extends Animal;
+    // Override the `speak` method
+    virtual function void speak();
+        $display("Cat meows.");
+    endfunction
+endclass
+
+module tb;
+    initial begin
+        // Base class handle references objects of derived classes
+        Animal a;
+         Dog d;
+      Cat c;
+
+        // Polymorphism: Dog
+      d=new();
+      a=d;
+        a.speak(); // Output: Dog barks.
+
+        // Polymorphism: Cat
+        c = new ();
+      d=c;
+        a.speak(); // Output: Cat meows.
+    end
+endmodule

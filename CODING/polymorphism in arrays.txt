@@ -1,0 +1,40 @@
+
+//polymorphism in arrays
+class Animal;
+    virtual function void speak();
+        $display("Animal speaks.");
+    endfunction
+endclass
+
+class Dog extends Animal;
+    virtual function void speak();
+        $display("Dog barks.");
+    endfunction
+endclass
+
+class Cat extends Animal;
+    virtual function void speak();
+        $display("Cat meows.");
+    endfunction
+endclass
+
+module tb;
+   Animal animals[2];
+       Dog d;
+      Cat c;
+    initial begin
+      
+      d=new();
+      c=new();
+        animals[0] = new ();
+       animals[0]=d;
+        animals[1] = new ();
+     
+      animals[1]=c;
+
+        // Call speak() for each animal
+        foreach (animals[i]) begin
+            animals[i].speak(); // Output: Dog barks. Cat meows.
+        end
+    end
+endmodule

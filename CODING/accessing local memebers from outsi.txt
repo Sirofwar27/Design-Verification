@@ -1,0 +1,28 @@
+//accessing local memebers from outside class
+class exp;
+int public;
+local int private;
+  
+  function new( int public=5,  int private=6);
+    this.public=public;
+    this.private=private;
+  endfunction
+  
+  function void display();
+    $display(" public var:%0d, private var %0d", public,private);
+  endfunction
+  
+endclass
+
+module tb;
+  exp e;
+  initial begin
+    e=new();
+    $display("%0d",e.public);
+    //     $display("%0d",e.private);  this will cause error cause local variables cant be accesed directly instead use a method inside the class to display it.
+    
+    e.display();
+  end
+endmodule
+
+      

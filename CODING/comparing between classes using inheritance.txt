@@ -1,0 +1,41 @@
+// comparing between classes using inheritance
+
+class EthernetFrame;
+  rand bit [7:0] src_mac;       // Source MAC address
+    rand bit [47:0] dst_mac;       // Destination MAC address
+    rand bit [15:0] ether_type;    // EtherType field
+endclass
+
+class IPPacket extends EthernetFrame;
+  rand bit [7:0] src_ip;        // Source IP address
+    rand bit [31:0] dst_ip;        // Destination IP address
+    rand bit [15:0] id;         
+// constraint c {
+//   src_mac == src_ip;
+//   }
+  
+endclass 
+
+class lol extends IPPacket;
+  rand bit [7:0] src_lol;
+  
+  constraint c {
+  src_mac== src_ip;
+  src_ip == src_lol;
+  }
+endclass
+
+  module tb;
+//     IPPacket i =new();
+    lol l=new();
+    initial begin
+      repeat (10) begin
+        if (l.randomize()) begin
+          $display("%0p ==%0p==%0p", l.src_ip,l.src_mac,l.src_lol);
+      end
+      else begin
+        $display("random failed");
+      end
+    end
+    end
+  endmodule

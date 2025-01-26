@@ -1,0 +1,43 @@
+// static variables and functions
+class Example;
+    // Static variable shared among all objects
+    static int static_counter = 0;
+
+    // Non-static variable specific to each object
+    int instance_counter;
+
+    // Constructor
+    function new();
+        static_counter++;       // Increment static variable
+        instance_counter++;   // Initialize non-static variable
+    endfunction
+
+    // Static function
+    static function void display_static();
+        $display("Static Counter: %0d", static_counter);
+    endfunction
+
+    // Non-static function
+    function void display_instance();
+        $display("Instance Counter: %0d", instance_counter);
+    endfunction
+endclass
+
+module tb;
+    initial begin
+        // Create multiple objects
+        Example obj1 = new();
+        Example obj2 = new();
+
+        // Access static variable via class name
+        Example::display_static(); // Output: Static Counter: 2
+
+        // Access instance-specific data
+        obj1.display_instance();   // Output: Instance Counter: 1
+        obj2.display_instance(); // Output: Instance Counter: 1
+      obj1.display_static();
+    end
+endmodule
+
+// a static variable is shared accross all object, but for normal variable each object has different copy.
+// a static function can be simulated without creating objext, it cant access non static variables.

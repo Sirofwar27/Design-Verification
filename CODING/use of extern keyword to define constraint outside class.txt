@@ -1,0 +1,24 @@
+//use of extern keyword to define constraint outside class
+
+class abc;
+  randc bit [3:0] mode;
+  
+ extern constraint c;
+endclass
+
+constraint abc::c{mode>2; mode<6;};
+
+module tb;
+  abc a;
+  initial begin
+    a=new();
+    repeat(5) begin
+    if (a.randomize()) begin
+      $display("%0p",a.mode);
+    end
+      else begin
+        $display("randomization failed!");
+      end
+  end
+  end
+endmodule

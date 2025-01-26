@@ -1,0 +1,32 @@
+// using different types of datatypes by parametirized class
+
+class stack #(type t=int);
+  t a;  //t is handle, a is a variable of t type
+  
+  function t generic_function(t b=5);
+    return a+b;
+  endfunction
+endclass 
+  module tb;
+    int m;
+    initial begin
+      stack #(int) ll;
+      stack#(real) rl;
+      stack#(bit[3:0]) bl;
+      
+      ll=new();
+      rl=new();
+      bl=new();
+      
+      ll.a=27;
+      m=ll.generic_function(20);
+      $display("%0d",m);
+      
+      rl.a=55.5;
+      $display("%0p",rl.generic_function(12.6));
+      
+      bl.a=2;
+      
+      $display("%0d",bl.generic_function(12));
+    end
+  endmodule

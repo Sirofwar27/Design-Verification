@@ -1,0 +1,18 @@
+// use of protected keyword in class
+class ABC;
+    protected byte local_var; // Use `protected` instead of `local`
+endclass
+
+class DEF extends ABC;
+    function void show();
+        local_var = 8'hBB; // Accessible because it is `protected`
+        $display("local_var = 0x%0h", local_var);
+    endfunction
+endclass
+
+module tb;
+    initial begin
+        DEF obj = new();
+        obj.show(); // Output: local_var = 0xbb
+    end
+endmodule

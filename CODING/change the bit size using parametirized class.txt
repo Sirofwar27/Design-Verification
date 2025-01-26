@@ -1,0 +1,33 @@
+// change the bit size using parametirized class
+
+class pc #(int x=8);
+  bit [x-8:0] vari;//A bit vector with size (x - 8 + 1), which simplifies to (x - 7).16-7=9 bits
+
+
+  function new (bit [x-8:0] vari=8);
+  this.vari=vari;
+endfunction
+endclass
+
+module tb;
+  initial begin
+    pc #(16) ob1;
+    pc#(.x(4)) ob2;
+    pc#() ob3;
+    
+    ob1=new(200);
+    ob2=new(4);
+    ob3=new();
+    
+    $display(" bit size of ob1- %0d", $bits(ob1.vari));//9
+    $display(" bit size of ob2- %0d", $bits(ob2.vari));//5 (-3=5) in binary
+    $display(" bit size of ob3- %0d", $bits(ob3.vari));//1
+    
+    $display("value of ob1- %0d",ob1.vari);//output 200
+      
+    $display("value of ob2- %0d",ob2.vari);//output 4
+      
+         
+    $display("value of ob3- %0d",ob3);//140057541904908;it shows memory address
+     end
+ endmodule

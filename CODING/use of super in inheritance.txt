@@ -1,0 +1,36 @@
+// use of super in inheritance
+
+class packet;
+  int addr;
+  function new(int addr=10);
+    this.addr=addr;
+  endfunction
+  
+  function display();
+    $display("lol [%0d]",addr);
+  endfunction
+endclass
+
+class extpacket extends packet;
+  int mode;
+  function new(int mode =0);
+    super.new();
+    this.mode=mode;
+  endfunction
+  
+  function display();
+    $display("bol [%0d]",mode);
+    super.display();
+  endfunction
+endclass
+
+module tb;
+  packet p;
+  extpacket ep;
+  initial begin
+    p=new();
+    ep=new(5);
+    
+    ep.display();
+  end
+endmodule

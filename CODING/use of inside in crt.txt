@@ -1,0 +1,23 @@
+//use of inside in crt
+class channel;
+  rand int id;
+  rand bit lol;
+  rand int priorityx;
+  
+  constraint c {
+    id inside {[0:500]};
+    priorityx inside {[0:100]};
+  }
+  
+endclass
+
+module tb;
+  channel ch;
+  initial begin
+    for (int i=0;i<10;i++) begin
+      ch=new();
+      ch.randomize();
+      $display("%0d -> %0d",ch.id,ch.priorityx);
+    end
+  end
+endmodule

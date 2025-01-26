@@ -1,0 +1,19 @@
+// Forward declaration of class
+typedef class DEF;
+class ABC;
+    DEF def; // Compiler now recognizes DEF as a type
+endclass
+
+class DEF;
+    ABC abc; // DEF references ABC, which has already been declared
+endclass
+
+module tb;
+    initial begin
+        // Instantiate classes
+        ABC abc_obj = new();
+        DEF def_obj = new();
+
+        $display("Objects created successfully.");
+    end
+endmodule
