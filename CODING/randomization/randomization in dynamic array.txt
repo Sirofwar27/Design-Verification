@@ -1,0 +1,36 @@
+//randomization in dynamic array
+class array;
+  rand bit [7:0] lol [];
+   int i;
+  
+  constraint c {
+    lol.size()>10;
+    lol.size()<27;
+  };
+  
+  constraint d{
+    foreach (lol[i]) 
+      lol[i]>0;
+      lol[i]<100;
+    
+  };
+  
+endclass
+
+module tb;
+  array a;
+//   int i;
+  initial begin
+    a=new();
+//     repeat(5) begin
+    if (a.randomize()) begin
+      foreach (a.lol[i]) begin
+      $display("arr[%0p]=%0p",i,a.lol[i]);
+      end
+    end
+    else begin
+      $display("randomization failed!");
+    end
+  end
+//   end
+endmodule

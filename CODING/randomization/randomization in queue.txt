@@ -1,0 +1,20 @@
+//randomization in queue
+
+class Packet;
+    rand bit [3:0] queue [$];  // Queue declaration
+
+    // Constrain queue size to exactly 4 elements
+    constraint c_array {
+        queue.size() == 4;
+    }
+endclass
+
+module tb;
+    Packet pkt;
+
+    initial begin
+        pkt = new();
+        pkt.randomize();  // Randomize the queue
+        $display("queue = %p", pkt.queue);  // Display the queue
+    end
+endmodule

@@ -1,0 +1,32 @@
+//randomization specific range,not this range, choosing a specific value
+class random;
+  rand bit[7:0] mon,non,typ;
+  
+  constraint c{
+    mon inside {[1:100]};//choose from a range
+  };
+  
+  constraint d {
+    non inside {27,7,17};
+  }; // choose from a specific value
+  
+  constraint e{
+    !(typ inside {[5:100]});
+  };  //not to choose from this range
+  
+  function display();
+    $display("[%0p]--[%0p]--[%0p]",mon,non,typ);
+  endfunction
+endclass
+  
+  module tb;
+    random r;
+    initial begin
+      r=new();
+      repeat (10) begin
+      r.randomize();
+      r.display();
+      end
+    end
+  endmodule
+      
