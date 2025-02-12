@@ -1,0 +1,77 @@
+//shallow copy
+class first;
+  int data=12;
+endclass
+
+class second;
+  int data2=24;
+  first f;
+  function new();
+    f=new();
+  endfunction
+  
+endclass
+
+module tb;
+  second m,n;
+  initial begin
+    m=new();
+    n=new();
+    m.data2=45;
+    n=new m;
+    $display("%0p--%0p",m.data2,n.data2);
+    n.data2=10;
+    $display("%0p--%0p",m.data2,n.data2);// 45,10. from which we copy that will not change. orginal remains same for data type.
+    n.f.data=100;
+    $display("%0p--%0p",m.f.data,n.f.data);//exactly this is shallow, whenever we try to access a class, for both it changes, as both the object is sharing a common handler which refers the same memory address.
+  end
+endmodule
+
+
+//2
+
+class Header;
+    int id;
+
+    function new(int id);
+        this.id = id;
+    endfunction
+endclass
+
+class Packet;
+    int addr, data;
+    Header hdr;
+
+    function new(int addr, int data, int id);
+        this.addr = addr;
+        this.data = data;
+        this.hdr = new(id);
+    endfunction
+
+    function void display(string name);
+        $display("[%s] addr=0x%0h data=0x%0h id=%0d", name, addr, data, hdr.id);
+    endfunction
+endclass
+
+module tb;
+    Packet p1, p2;
+
+    initial begin
+        // Create packet p1
+        p1 = new(32'hface_cafe, 32'h1234_5678, 26);
+        p1.display("p1");
+
+        // Shallow copy p1 into p2
+        p2 = new(p1);
+        p2.display("p2");
+
+        // Modify p1's values
+        p1.addr = 32'habcd_ef12;
+        p1.data = 32'h5a5a_5a5a;
+        p1.hdr.id = 17;
+        p1.display("p1");
+
+        // Observe changes in p2
+        p2.display("p2");
+    end
+endmodule

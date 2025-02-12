@@ -1,0 +1,104 @@
+module spi_master(spi_if intf);
+  logic [10:0] data_to_send;
+  logic [4:0] received_data_master;
+  integer i;
+
+  task send_data(input logic [3:0] data1, data2, input logic rst, input opcode opcode);
+    data_to_send = {data1,data2,rst,opcode};
+    $display("sent data :%0b",data_to_send);
+    if (!intf.cs) begin
+      for (i = 0; i < 11; i++) begin
+        intf.mosi = data_to_send[i];
+        @(posedge intf.clk);
+       
+      end
+    end
+  endtask
+  
+  task receive_data();
+    if (!intf.cs) begin
+      for (i = 5; i < 0; i--) begin
+        @(posedge intf.clk);
+        #10;
+        received_data_master[i] = intf.miso;
+      end
+    end
+     $display("recieved data at master %0b",received_data_master);
+  endtask
+endmodule
+
+module spi_slave(spi_if intf);
+  logic [10:0] received_data;
+  logic [3:0] a, b;
+  logic rst;
+  opcode opcode; // Use the global enum type
+  bit signed [0:4] result;
+  integer i;
+  DUT dut;
+
+  always @(posedge intf.clk) begin
+  if (!intf.cs) begin
+    for (i = 0; i < 11; i++) begin
+      received_data[i] <= intf.mosi;
+      @(posedge intf.clk);
+    end
+    
+    // Use case statement instead of direct casting
+    case (received_data[1:0])
+      2'b00: opcode = add;
+      2'b01: opcode = sub;
+      2'b10: opcode = invert;
+      2'b11: opcode = reduction;
+      default: opcode = add; // Fallback to a default value
+    endcase
+
+    rst = received_data[2];
+    b = received_data[6:3];
+    a = received_data[10:7];
+    $display("Received Data: %b", received_data);
+
+    result = dut.op(a, b, rst, opcode);
+    $display("the result %0b", result);
+
+    for (i = 0; i < 5; i++) begin
+//        @(posedge intf.clk); 
+      intf.miso <= result[i];
+      @(posedge intf.clk);
+    end
+  end
+end
+
+
+
+endmodule
+
+interface spi_if;
+  logic cs, clk, mosi, miso;
+endinterface
+
+`include "interface.sv"
+`include "master.sv"
+`include "slave.sv"
+module spi_tb;
+  spi_if intf();
+  spi_master master(intf);
+  spi_slave slave(intf);
+
+  initial begin
+    intf.cs = 1; intf.clk = 0; intf.mosi = 0;
+    #5 intf.cs = 0; // Enable communication
+    fork
+      forever #5 intf.clk = ~intf.clk;
+    join_none
+     $dumpfile("spi_waveform.vcd"); // Dump the waveform file
+    $dumpvars(0, spi_tb);    
+    master.send_data(4'b1110, 4'b1111, 1'b0, add); // Example: Add 5 + 3
+    master.receive_data();
+    // Display formatted output
+    #5 $display("Operation: %0d + %0d = %0d", 14, 15, master.received_data_master);
+
+    #50 $finish;
+  end
+endmodule
+
+

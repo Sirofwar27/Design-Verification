@@ -1,0 +1,192 @@
+//spi
+
+typedef enum bit[1:0]{
+  add=2'b00,
+  sub=2'b01,
+  invert=2'b10,
+  reduction=2'b11
+}opcode;
+
+class DUT;
+  
+  function bit signed [0:4] op(bit signed [0:3] a, b, bit rst, opcode opcode);
+    if (!rst) begin
+      case (opcode)
+        add: return a + b;
+        sub: return a - b;
+        invert: return ~a & 5'b01111;
+        reduction: return |b;
+      endcase
+    end
+    return 0;  // Reset case
+  endfunction
+endclass
+interface spi_interface();
+    logic SCLK;      // Serial Clock
+    logic MOSI;      // Master Out Slave In
+    logic MISO;      // Master In Slave Out
+    logic CS;        // Chip Select (Active Low)
+
+    // Define modports for Master and Slave
+    modport master (output SCLK, MOSI, CS, input MISO);  // Master receives from `MISO`
+    modport slave (input SCLK, MOSI, CS, output MISO);   // Slave sends `MISO`
+endinterface
+module master (
+    input logic clk,
+    input logic start,
+    input logic [10:0] data,
+    output logic [4:0] received_result,
+    spi_interface.master spi
+);
+  
+  logic [10:0] shift_reg;
+  logic [4:0] bit_counter;  // Increased to 5 bits (0-16)
+
+  always_ff @(posedge clk) begin
+    if (start) begin
+        shift_reg <= data;
+        bit_counter <= 0;
+        spi.CS <= 0;        // Activate slave
+    end 
+    else if (bit_counter < 16) begin
+        if (bit_counter < 11) begin
+            spi.MOSI <= shift_reg[10];   // Send command bits (MSB first)
+            shift_reg <= shift_reg << 1;
+        end
+        spi.SCLK <= ~spi.SCLK;       // Toggle clock
+        bit_counter <= bit_counter + 1;
+    end 
+    else begin
+        spi.CS <= 1;    // Deactivate slave
+        spi.SCLK <= 0;  // Reset clock
+    end
+  end
+
+  // Capture MISO on rising SCLK edges (slave data)
+  always_ff @(posedge spi.SCLK) begin
+    if (bit_counter >= 11 && bit_counter < 16) begin
+        received_result <= {received_result[3:0], spi.MISO}; // Shift in result (LSB first)
+    end
+  end
+
+endmodule
+
+module slave (
+    input logic clk,
+    spi_interface.slave spi
+  
+);
+
+  logic [10:0] shift_reg;       // For incoming command
+  logic [4:0] result_shift_reg; // For outgoing result
+  logic [4:0] bit_counter;
+
+  logic signed [3:0] a, b;
+  logic rst;
+  opcode op;
+
+  always_ff @(posedge spi.SCLK) begin
+    if (!spi.CS) begin
+        if (bit_counter < 11) begin
+            // Receive command (11 bits)
+            shift_reg <= {shift_reg[9:0], spi.MOSI};
+        end
+        else if (bit_counter == 11) begin
+            // Decode SPI data and compute ALU result
+            rst = shift_reg[10];
+            a = shift_reg[9:6];
+            b = shift_reg[5:2];
+            op = opcode'(shift_reg[1:0]);
+
+            if (!rst) begin
+              case (op)
+                add: result_shift_reg <= a + b;
+                sub: result_shift_reg <= a - b;
+                invert: result_shift_reg <= ~a & 5'b01111;
+                reduction: result_shift_reg <= |b;
+                default: result_shift_reg <= 5'b0;
+              endcase
+            end
+            else begin
+              result_shift_reg <= 5'b0;
+            end
+        end
+        else if (bit_counter < 16) begin
+            // Transmit result (5 bits)
+            spi.MISO <= result_shift_reg[4]; // MSB first
+            result_shift_reg <= result_shift_reg << 1;
+        end
+        bit_counter <= bit_counter + 1;
+    end
+    else begin
+        // Reset when CS is inactive
+        bit_counter <= 0;
+        shift_reg <= 0;
+        result_shift_reg <= 0;
+    end
+  end
+
+endmodule
+
+`include "interface.sv"
+`include "master.sv"
+`include "slave.sv"
+
+module tb_spi_test;
+
+  logic clk;
+  logic [10:0] test_data;
+  logic start;
+  logic [4:0] received_result_tb; // Store result from MISO
+
+  // Instantiate SPI Interface
+  spi_interface spi();
+
+  // Instantiate SPI Master
+  master master (
+    .clk(clk),
+    .start(start),
+    .data(test_data),
+    .received_result(received_result_tb), // Read result from SPI Master
+    .spi(spi) // Connecting to interface
+  );
+
+  // Instantiate DUT with SPI Slave
+  slave dut (
+    .clk(clk),
+    .spi(spi) // Connecting to interface
+  );
+
+  always #5 clk = ~clk; // System clock toggle
+
+  initial begin
+    clk = 0;
+    start = 0;
+    $dumpfile("spi_waveform.vcd"); // Name of the waveform file
+$dumpvars;
+   
+
+
+    $display("Time\tOpcode\tA\tB\tResult");
+    $monitor("%0t\t%b\t%0d\t%0d\t%0d", $time, test_data[1:0], test_data[9:6], test_data[5:2], received_result_tb);
+
+    #20;  
+
+    // Test ADD: A = 4, B = 2, Opcode = 00
+    test_data = {1'b0, 4'b0110, 4'b0110, 2'b00};
+    
+    start = 1;
+    
+    #400 start = 0;
+     // Test Case 2: SUB (2'b01), a = 7, b = 3, rst = 0
+    test_data = {1'b0, 4'b0111, 4'b0011, 2'b01};
+    start = 1;
+    #10 start = 0;
+    #500;
+ 
+
+    $stop;
+  end
+endmodule
+
+

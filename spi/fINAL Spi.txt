@@ -1,0 +1,131 @@
+//fINAL Spi
+
+// Code your design here
+// Code your design here
+typedef enum bit[1:0]{
+  add=2'b00,
+  sub=2'b01,
+  invert=2'b10,
+  reduction=2'b11
+}opcode;
+
+class DUT;
+  
+  function bit  [0:4] op(bit  [0:3] a, b, bit rst, opcode opcode);
+    if (!rst) begin
+      case (opcode)
+        add: return a + b;
+        sub: return a - b;
+        invert: return ~a & 5'b01111;
+        reduction: return |b;
+      endcase
+    end
+    return 0;  // Reset case
+  endfunction
+endclass
+
+interface spi_if;
+  logic cs, clk, mosi, miso;
+endinterface
+module spi_master(spi_if intf);
+  logic [10:0] data_to_send;
+  logic [4:0] received_data_master;
+  integer i;
+
+  task send_data(input logic [3:0] data1, data2, input logic rst, input opcode opcode);
+    data_to_send = {data1,data2,rst,opcode};
+    $display("sent data :%0b",data_to_send);
+    if (!intf.cs) begin
+      for (i = 0; i < 11; i++) begin
+        intf.mosi = data_to_send[i];
+        @(posedge intf.clk);
+       
+      end
+    end
+  endtask
+
+
+  task receive_data();
+    if (!intf.cs) begin
+      for (i = 4; i >=0; i--) begin
+        @(posedge intf.clk);
+        #10;
+        received_data_master[i] = intf.miso;
+      end
+    end
+     $display("recieved data at master %0b",received_data_master);
+  endtask
+endmodule
+
+module spi_slave(spi_if intf);
+  logic [10:0] received_data;
+  logic [0:3] a, b;
+  logic rst;
+  opcode opcode; 
+  bit signed [0:4] result;
+  integer i;
+  DUT dut;
+
+  always @(posedge intf.clk) begin
+  if (!intf.cs) begin
+    for (i = 0; i < 11; i++) begin
+      received_data[i] <= intf.mosi;
+      @(posedge intf.clk);
+    end
+    
+    case (received_data[1:0])
+      2'b00: opcode = add;
+      2'b01: opcode = sub;
+      2'b10: opcode = invert;
+      2'b11: opcode = reduction;
+      default: opcode = add; 
+    endcase
+
+    rst = received_data[2];
+    b = received_data[6:3];
+    a = received_data[10:7];
+    $display("Received Data: %b", received_data);
+
+    result = dut.op(a, b, rst, opcode);
+    $display("the result after dut op %0b", result);
+
+    for (i = 0; i < 5; i++) begin
+//        @(posedge intf.clk); 
+      intf.miso <= result[i];
+      @(posedge intf.clk);
+    end
+  end
+end
+endmodule
+
+
+`include "interface.sv"
+`include "master.sv"
+`include "slave.sv"
+module spi_tb;
+  spi_if intf();
+  spi_master master(intf);
+  spi_slave slave(intf);
+
+  initial begin
+    intf.cs = 1; intf.clk = 0; intf.mosi = 0;
+    #5 intf.cs = 0; 
+    fork
+      forever #5 intf.clk = ~intf.clk;
+    join_none
+     $dumpfile("spi_waveform.vcd"); // Dump the waveform file
+    $dumpvars(0, spi_tb);    
+    master.send_data(4'b0110, 4'b0011, 1'b0, add);
+    master.receive_data();
+    // Display formatted output
+    #5 $display("Operation: %0d + %0d = %0d", 6, 3, master.received_data_master);
+      
+
+    #50 $finish;
+  end
+endmodule
+
+
+
+
+  

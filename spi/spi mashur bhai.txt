@@ -1,0 +1,76 @@
+//spi mashur bhai
+
+module slave(input logic mosi, sck, cs, output logic miso);
+  bit [9:0] in;
+  
+  bit[3:0] a,b;
+  bit[1:0] op;
+  bit[4:0] out;
+  bit[4:0] count;
+  
+  always @(negedge sck) begin
+    if(!cs) begin 
+      count <= count + 1'b1;
+      if(count<10) begin
+        in <= (in << 1) | mosi;
+      end
+      else if(count == 10) begin
+        op <= in[9:8];
+        a <= in[7:4];
+        b <= in[3:0];
+        #1
+        case(op)
+          0: out <= a+b;
+          1: out <= a-b;
+          2: out <= ~(a) & 5'b01111;
+          3: out <= 5'b00001 & (|b);
+        endcase
+      end
+      if(count>10) begin
+        @(posedge sck)
+        miso <= out[4];
+        out <= out << 1;
+      end
+    end
+  end
+  
+
+  
+  
+endmodule
+
+
+
+
+
+
+
+
+
+module tb();
+ 	bit clk, cs, mosi;
+  bit[9:0] in;
+  slave dut(.cs(cs), .sck(clk), .mosi(mosi));
+  
+  initial in = 10'b0000110100;
+  
+  always @(posedge clk) begin
+    mosi <= in[9];
+    in <= {in[8:0], in[9]};
+  end
+  
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars();
+    #200 
+    $finish;
+  end
+  
+  initial begin
+    fork 
+    	forever #5 clk <= ~clk;
+      cs = 1;
+      #2 cs = 0;
+    join
+  end
+endmodule

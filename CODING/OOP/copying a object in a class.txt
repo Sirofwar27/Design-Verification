@@ -1,0 +1,20 @@
+//copying a object in a class
+
+class first;
+  int data;
+endclass
+
+module tb;
+  first f;
+  first p;
+  initial begin
+    f=new();
+    f.data=24;
+   p=new f;
+    $display("%0p",p.data);// value 24 is copied from object f to p.
+    p.data=12;
+    $display("%0p--%0p",f.data,p.data);//output;24,12
+//this means even though we can change the p value, but still the value of f is 24, so actually we dont have access to the orginal copy.
+  end
+endmodule
+    

@@ -1,0 +1,29 @@
+//first interface
+interface first_interface(input logic clk);
+  logic[7:0] data;
+endinterface
+
+module dut(first_interface intf);
+  always@(posedge intf.clk) begin
+    intf.data = intf.data + 1;
+  end
+endmodule 
+
+module tb;
+  logic clk;
+  first_interface intf (clk);//declare interface
+  dut d(intf);//instansiate dut
+  
+  always #10 clk = ~clk;
+  
+  initial begin
+    clk=0;
+    intf.data=0;
+    
+    #20 $display("the value of data is %0p",intf.data);
+    #20 $display("the value of data is %0p",intf.data);
+    #80   $display("the value of data is %0p",intf.data);
+    #20 $finish;
+  end
+endmodule
+  

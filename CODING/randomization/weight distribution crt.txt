@@ -2,11 +2,11 @@ class packet;
   rand int src,dst;
   
   constraint c{
-    src dist{0:=40,[1:3]:=60}; 
+    src dist{0:=40,[1:3]:=60}; // 1,2,3 in total weight 60, so each is sharing 20.
   }
   
   constraint d{
-    dst dist{0:=90,[2:5]:/10};
+    dst dist{0:=90,[2:5]:/10};// equally each has weight of 10
   
   }
   function void display();

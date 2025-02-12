@@ -1,0 +1,36 @@
+//array constraint in sv
+class ABC;
+    rand bit[3:0] darray[];  // Dynamic array
+
+    // Constrain size and assign values
+    constraint c_array {
+        darray.size() == 5;  // Set size
+        foreach (darray[i]) {
+            darray[i] == i;
+        }
+    }
+endclass
+
+module tb;
+    initial begin
+        ABC abc = new();
+        abc.randomize();
+        $display("darray = %p", abc.darray);
+    end
+endmodule
+class ABC;
+    rand bit [3:0] darray[];
+
+    constraint c_array {
+        darray.size() == 5;                  // Constrain size
+        darray.sum() with (int'(item)) == 20; // Constrain sum
+    }
+endclass
+
+module tb;
+    initial begin
+        ABC abc = new();
+        abc.randomize();
+        $display("darray = %p", abc.darray);
+    end
+endmodule

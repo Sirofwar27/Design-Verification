@@ -1,0 +1,174 @@
+typedef enum bit[1:0]{
+  add=2'b00,
+  sub=2'b01,
+  invert=2'b10,
+  reduction=2'b11
+}opcode;
+
+class DUT;
+  
+  function bit  [0:4] op(bit  [0:3] a, b, bit rst, opcode opcode);
+    if (!rst) begin
+      case (opcode)
+        add: return a + b;
+        sub: return a - b;
+        invert: return ~a & 5'b01111;
+        reduction: return |b;
+      endcase
+    end
+    return 0;  // Reset case
+  endfunction
+endclass
+
+interface spi_if;
+  logic cs, clk, mosi, miso;
+endinterface
+
+module spi_master(spi_if intf);
+  logic [10:0] data_to_send;
+  logic [4:0] received_data_master;
+  integer i;
+  logic clk_en;
+
+  // Generate clock only when CS is low
+  always begin
+    while (clk_en) begin
+      #5 intf.clk = ~intf.clk;
+    end
+    intf.clk = 0; // Keep clock low when not active
+    @(posedge clk_en); // Wait until clock is enabled
+  end
+
+  task send_data(input logic [3:0] data1, data2, input logic rst, input opcode opcode);
+    data_to_send = {data1, data2, rst, opcode};
+    $display("Sent data: %0b", data_to_send);
+    intf.cs=1;
+    clk_en= 0;
+    
+    #20 intf.cs = 0; // Activate CS
+    clk_en = 1; // Start clock generation
+    
+    for (i = 0; i < 11; i++) begin
+       @(posedge intf.clk);
+      intf.mosi = data_to_send[i];
+     
+    end
+    
+    #170 clk_en = 0; // Stop clock after sending
+     intf.cs = 1; // Deactivate CS
+  endtask
+
+  task receive_data();
+    if (!intf.cs) begin
+
+      for (i = 4; i >= 0; i--) begin
+        @(negedge intf.clk);
+        #1;
+        received_data_master[i] = intf.miso;
+      end
+    end
+    $display("Received data at master: %0b", received_data_master);
+
+  endtask
+endmodule
+
+module spi_slave(spi_if intf);
+  logic [10:0] received_data;
+  logic [3:0] a, b;
+  logic rst;
+  opcode opcode;
+  bit signed [4:0] result;
+  integer i;
+  DUT dut;
+  bit data_received;
+
+  task receive_data_slave();
+    if (!intf.cs) begin
+      for (i = 0; i < 11; i++) begin
+        @(negedge intf.clk);
+        received_data[i] = intf.mosi;
+      end
+      
+      case (received_data[1:0])
+        2'b00: opcode = add;
+        2'b01: opcode = sub;
+        2'b10: opcode = invert;
+        2'b11: opcode = reduction;
+        default: opcode = add;
+      endcase
+
+      rst = received_data[2];
+      b = received_data[6:3];
+      a = received_data[10:7];
+      $display("Received Data: %b", received_data);
+
+      result = dut.op(a, b, rst, opcode);
+      $display("The result after DUT op: %0b", result);
+      
+      data_received = 1; // Set flag indicating transaction is complete
+    end
+  endtask
+  
+  task send_data_slave();
+    if (!intf.cs && data_received) begin
+      for (i = 0; i < 5; i++) begin
+        @(posedge intf.clk);
+        intf.miso = result[i];
+      end
+      data_received = 0; // Reset flag after sending
+    end
+  endtask
+
+  always @(negedge intf.clk) begin
+    if (!intf.cs) begin
+      receive_data_slave();
+    end
+  end
+
+  always @(posedge intf.clk) begin
+    if (!intf.cs && data_received) begin
+      send_data_slave();
+    end
+  end
+endmodule
+
+`include "interface.sv"
+`include "master.sv"
+`include "slave.sv"
+
+module spi_tb;
+  spi_if intf();
+  spi_master master(intf);
+  spi_slave slave(intf);
+
+  initial begin
+//     intf.cs = 1; 
+//     intf.clk = 0; 
+    intf.mosi = 0;
+
+    $dumpfile("spi_waveform.vcd"); // Dump the waveform file
+    $dumpvars(0, spi_tb);
+
+  
+    fork
+      master.send_data(4'b0110, 4'b0011, 1'b0, add);
+      slave.receive_data_slave();
+    join
+
+    #10; 
+
+   
+    fork
+      slave.send_data_slave();
+      master.receive_data();
+    join
+
+    #5 $display("Operation: %0d + %0d = %0d", 6, 3, master.received_data_master);
+
+//     #50
+    $finish;
+  end
+endmodule
+
+
+  

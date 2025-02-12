@@ -1,0 +1,56 @@
+
+// If-else construct in randomization
+
+class abc;
+  randc bit[3:0] lens;
+  randc bit[3:0] mode;                     //if (mode inside {[5:11]})
+  constraint c{
+    if (mode>4 && mode<12){
+      lens==1;}
+      else
+      {lens==0;}
+    };
+endclass
+
+module tb;
+  abc a;
+
+  initial begin
+    // Allocate the object 'a'
+    a = new();
+
+    repeat(25) begin
+      a.randomize();
+      $display("mode=%0p --- lens=%0p", a.mode, a.lens);
+    end
+  end
+endmodule
+
+//nested 
+
+class ABC;
+    rand bit [3:0] mode;
+    rand bit mod_en;
+
+    constraint c_mode {
+        if (mode inside {[5:11]}) {
+            mod_en == 1;
+        } else {
+            if (mode == 1) {
+                mod_en == 1;
+            } else {
+                mod_en == 0;
+            }
+        }
+    }
+endclass
+
+module tb;
+    initial begin
+        ABC abc = new();
+        for (int i = 0; i < 10; i++) begin
+            abc.randomize();
+            $display("mode=0x%0h mod_en=0x%0h", abc.mode, abc.mod_en);
+        end
+    end
+endmodule

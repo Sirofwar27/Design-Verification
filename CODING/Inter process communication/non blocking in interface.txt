@@ -1,0 +1,66 @@
+// non blocking in interface
+
+
+
+module add(
+  input [3:0] a, b,
+  input clk,
+  output reg [4:0] sum  // ✅ 'sum' must be 'reg' type for sequential logic
+);
+  always @(posedge clk) begin
+    sum <= a + b;  // ✅ Correct non-blocking assignment
+  end
+endmodule
+interface intf;
+  logic [3:0] a;
+  logic [3:0] b;
+  logic [4:0] sum;
+  logic clk;
+endinterface 
+
+module tb;
+  intf i();  
+
+  add dut ( 
+    .a(i.a),
+    .b(i.b),  
+    .sum(i.sum),
+    .clk(i.clk)
+  );
+
+  
+  always #5 i.clk = ~i.clk; 
+
+
+  initial begin
+      i.clk = 0; 
+  end
+  
+  initial begin
+    i.a <= 1;
+    i.b <= 5;
+//     #2;
+    $display("Time=%0t | a=%0d | b=%0d | sum=%0d", $time, i.a, i.b, i.sum);
+    repeat(3) @(posedge i.clk) begin
+    i.a <= 3;
+//     #4;
+    $display("Time=%0t | a=%0d | b=%0d | sum=%0d", $time, i.a, i.b, i.sum);
+
+    i.a <= 4;
+//     #8;
+    i.a <= 5;
+//     #10;
+    $display("Time=%0t | a=%0d | b=%0d | sum=%0d", $time, i.a, i.b, i.sum);
+
+//     #20;
+  end
+    $finish;
+  end
+
+  // Dumping Waveform for Debugging
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+
+endmodule

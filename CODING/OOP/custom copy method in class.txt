@@ -1,0 +1,28 @@
+//custom copy method in class
+
+class first;
+  int data;
+  bit [7:0] x;
+  function first copy();
+    copy=new();
+    copy.data=data;
+    copy.x=x;
+  endfunction
+ 
+endclass
+
+module tb;
+  first f;
+  first p;
+  initial begin
+    f=new();
+    p=new();
+    f.data=24;
+   p=f.copy;
+    $display("%0p",p.data);
+    p.data=12;
+    $display("%0p--%0p",f.data,p.data);
+    f.x=5;
+    $display("%0p--%0p",f.x,p.x);
+  end
+endmodule

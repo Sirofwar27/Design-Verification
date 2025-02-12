@@ -1,0 +1,50 @@
+//implication operator:
+
+//If the LHS condition evaluates to true, then the RHS constraint must also be satisfied.
+// If the LHS condition evaluates to false, the RHS constraint is ignored.
+  
+
+
+
+class abc;
+  randc bit[3:0] lens;
+  randc bit[3:0] mode;
+  
+  constraint c { mode==2 -> lens>10;}// if mode=2, then len should be greater than 10. what if mode is 2,3,4,5,6. how to write that?
+endclass
+module tb;
+  abc a;
+  initial begin
+    a=new();
+    repeat(25) begin
+      a.randomize();
+      $display("%0p---%0p",a.mode, a.lens);
+    end
+  end
+endmodule
+
+
+
+class abc;
+  randc bit[3:0] lens;
+  randc bit[3:0] mode;
+  
+  constraint c { 
+    (mode == 2 || mode == 3 || mode == 4 || mode == 5 || mode == 10) -> (lens == 0);
+     // You can keep the previous constraint for mode == 2 if necessary
+  }
+endclass
+
+module tb;
+  abc a;
+
+  initial begin
+    // Allocate the object 'a'
+    a = new();
+
+    repeat(25) begin
+      a.randomize();
+      $display("mode=%0p --- lens=%0p", a.mode, a.lens);
+    end
+  end
+endmodule

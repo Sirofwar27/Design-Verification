@@ -1,0 +1,52 @@
+//spi rtl compatable
+
+module slave(input wire mosi, sck, cs, output reg miso);
+
+  reg[3:0] a,b;
+  reg[1:0] op;
+  reg[4:0] out;
+  reg[4:0] count;
+  
+  initial begin 
+    count <= 0;
+    a <= 0;
+    b <= 0;
+    op <= 0;
+    out <= 0;
+  end
+  
+  always @(negedge sck or posedge cs) begin
+    if(cs) begin
+      	count <= 0;
+    	a <= 0;
+    	b <= 0;
+    	op <= 0;
+    	out <= 0;
+    end
+    else begin 
+      count <= count + 1'b1;
+      
+      if(count < 2) op <= (op << 1) | mosi;
+      else if (count < 6) a <= (a << 1) | mosi;
+      else if (count < 10) b <= (b << 1) | mosi;
+      else if(count == 10) begin
+        case(op)
+          0: out <= a+b;
+          1: out <= a-b;
+          2: out <= ~(a) & 5'b01111;
+          3: out <= 5'b00001 & (|b);
+        endcase
+      end
+    end
+  end
+  
+  always @(posedge sck or posedge cs) begin
+    if(cs) miso <= 1'bz;
+    else begin
+      if(count>10 && count <= 15) begin
+        miso <= out[15 - count];
+      end
+      else if(count > 15) miso <= 1'bz;
+    end
+  end
+endmodule

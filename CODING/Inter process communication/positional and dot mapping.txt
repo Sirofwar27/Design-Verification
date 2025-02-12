@@ -1,0 +1,40 @@
+//positional and dot mapping
+module add(
+  input[3:0] a,b,
+  output [4:0] sum
+);
+  assign sum=a+b;
+endmodule
+interface intf;
+  logic [3:0] a;
+  logic [3:0] b;
+  logic [4:0] sum;
+endinterface
+
+module tb;
+  intf i();
+//   add a(i.a,i.b,i.sum);//positional mapping
+  add a(.b(i.a),.sum(i.sum),.a(i.a));//dotmapping
+  initial begin
+  i.a=7;
+    i.b=4;
+    #10;
+    $display("%0t--%0p--%0p--sum = %0p",$time,i.a,i.b,i.sum);
+    #10;
+    i.a = 9;
+    i.b = 3;
+    #10;
+    $display("Time=%0t | a=%0d | b=%0d | sum=%0d", $time, i.a, i.b, i.sum);
+
+    #10;
+    $finish;
+    
+  end
+  
+ initial begin
+   $dumpfile("dump.vcd");
+   $dumpvars;
+ end
+    
+    
+endmodule

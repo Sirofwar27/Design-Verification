@@ -1,0 +1,49 @@
+//static and non static constraint
+
+//constraints are non-static by nature means if we  off one for any object doesnt affect other, static constraint affects both
+class ABC;
+  rand bit [3:0] a;
+
+  constraint c1 { a > 10; }   // Non-static constraint
+  constraint c2 { a < 12; }  // Non-static constraint
+endclass
+
+module tb;
+  initial begin
+    ABC obj1 = new;
+    ABC obj2 = new;
+
+    // Turn off c1 for obj1 only
+    obj1.c1.constraint_mode(0);
+
+    for (int i = 0; i < 5; i++) begin
+      obj1.randomize();  // c1 is OFF for obj1, c2 is ON
+      obj2.randomize();  // c1 and c2 are ON for obj2
+      $display("obj1.a = %0d, obj2.a = %0d", obj1.a, obj2.a);
+    end
+  end
+endmodule
+
+//static constraint
+class ABC;
+  rand bit [3:0] a;
+
+  constraint c1 { a > 5; }            // Non-static
+  static constraint c2 { a < 12; }    // Static constraint (shared)
+endclass
+
+module tb;
+  initial begin
+    ABC obj1 = new;
+    ABC obj2 = new;
+
+    // Turn off static constraint c2 for all instances
+    obj1.c2.constraint_mode(0);
+
+    for (int i = 0; i < 5; i++) begin
+      obj1.randomize();  // c2 is OFF for all instances
+      obj2.randomize();  // c2 is OFF here too
+      $display("obj1.a = %0d, obj2.a = %0d", obj1.a, obj2.a);
+    end
+  end
+endmodule

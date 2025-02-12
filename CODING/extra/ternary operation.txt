@@ -1,0 +1,17 @@
+module tb;
+  bit [3:0] mdata ;
+  bit flag;
+  initial begin
+    repeat (20) begin
+    mdata=$urandom_range(0,27);
+    flag= mdata inside {[4:17]} ? 1:0;
+    
+    if (flag == 1) begin
+      $display ("Pass--[%0p]--[%0p]",mdata,flag);
+    end
+    else begin
+      $display ("fail--[%0p]--[%0p]",mdata,flag);
+    end
+  end
+  end
+endmodule

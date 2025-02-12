@@ -1,0 +1,143 @@
+`include "interface.sv"
+`include "master.sv"
+`include "slave.sv"
+
+module spi_tb;
+  spi_if intf();
+  spi_master master(intf);
+  spi_slave slave(intf);
+
+  initial begin
+
+    intf.mosi = 0;
+
+    $dumpfile("spi_waveform.vcd"); 
+    $dumpvars(0, spi_tb);
+    #400;
+    $finish;
+  end
+
+  
+  initial begin
+      master.send_data(4'b0110, 4'b0011, 1'b0, add);
+
+
+    
+  end
+endmodule
+interface spi_if;
+  logic cs, clk, mosi, miso;
+endinterface
+module spi_master(spi_if intf);
+  logic [10:0] data_to_send;
+  logic [4:0] received_data_master;
+  integer i;
+  logic clk_en;
+  
+  initial begin
+    intf.cs=1;
+    intf.clk=0;
+    
+  end 
+
+initial begin
+    forever begin
+      wait (intf.cs == 0);
+
+      while (intf.cs == 0) begin
+        
+        intf.clk = ~intf.clk;
+        #10; 
+      end
+      intf.clk = 0;
+    end
+  end
+
+  task send_data(input logic [3:0] data1, data2, input logic rst, input opcode opcode);
+    data_to_send = {data1, data2, rst, opcode};
+    $display("Sent data: %b", data_to_send);
+    
+    #20;
+    intf.cs = 0; 
+
+
+       
+    
+          for (i = 10; i>=0; i--) begin
+                @(posedge intf.clk);
+                intf.mosi = data_to_send[i];
+            $display("master--%0b",data_to_send[i]);
+            end
+   
+    @(posedge intf.clk);
+    for (i = 4; i>=0; i--) begin
+  @(negedge intf.clk);
+      received_data_master[i]= intf.miso;
+      $display("master got result--%b",received_data_master);
+    end
+   intf.cs=1;
+
+        
+
+  endtask
+
+
+
+endmodule
+module spi_slave(spi_if intf);
+  logic [10:0] received_data;
+  logic [3:0] a, b;
+  logic rst;
+  opcode op;
+  bit signed [4:0] result;
+  integer i;
+  DUT dut;
+  bit data_received;
+  
+always@(!intf.cs) begin
+//   @(posedge intf.clk);
+for (i = 10; i>=0; i--) begin
+  @(negedge intf.clk);
+ received_data[i]=intf.mosi;
+  $display("slave--%p",received_data);
+    end
+   rst = received_data[2];
+      b = received_data[6:3];
+      a = received_data[10:7];
+  op=opcode'(received_data[1:0]);
+  $display("Received Data: %b | A: %b | B: %b | RST: %b | Opcode: %p", 
+         received_data, a, b, rst, op);
+  result = dut.op(a, b, rst, op);
+  $display("The result after DUT op: %0b", result);
+  
+  for (i = 4; i>=0; i--) begin
+    @(posedge intf.clk);
+    intf.miso=result[i];
+    $display("slave sent data:--%b",intf.miso);
+    end
+  end
+     
+
+endmodule
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
