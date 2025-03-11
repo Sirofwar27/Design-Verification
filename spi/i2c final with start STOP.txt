@@ -1,0 +1,319 @@
+i2c final with start STOP
+
+
+module tb_i2c_master;
+  i2c_if i2c_bus();
+  i2c_master uut (.ifc(i2c_bus));
+  i2c_slave slave (.ifc(i2c_bus));
+
+  initial begin
+    $dumpfile("i2c_test.vcd");
+    $dumpvars;
+ 
+   
+        uut.data_1_address = 8'b00001010; // data_1's address -> A -> 10
+        uut.data_1 = 8'b00001001;         // data_1's value -> 9
+        uut.address = 7'b0000001;
+    
+      
+
+       uut.address_2 = 7'b0000001;
+        uut.data_2_address = 8'b00001011; // data_1's address -> B -> 11
+        uut.data_2 = 8'b00000100;         // data_1's value -> 4
+      
+    
+    #1800;  
+    $finish;
+  end
+
+endmodule
+
+`include "add_slave.sv"
+`include "interface.sv"
+
+module i2c_master(i2c_if ifc);
+  bit [7:0] data_1_address;
+  bit [7:0] data_2_address;
+  bit [7:0] data_1;
+  bit [7:0] data_2;    
+  bit [6:0] address;
+  bit [6:0] address_2;
+  bit rw_bit = 1'b0;
+  bit ack;
+  integer bit_count = 0;
+  
+  bit [7:0] received_result;
+  bit start, stop;
+
+  task start_condition();
+      $display("Start Condition at Time %0t, Bit Count: %0d", $time, bit_count);
+    @(posedge ifc.scl);
+    ifc.sda <= #2 0;
+  endtask
+  
+  task stop_condition();
+    $display("Stop Condition at Time %0t, Bit Count: %0d", $time, bit_count);
+    ifc.sda <= 0;
+    @(posedge ifc.scl);
+    ifc.sda <= #2 1;
+  endtask
+
+  
+  initial begin
+    ifc.scl = 1;
+    forever #10 ifc.scl = ~ifc.scl;
+  end
+   
+  initial begin
+    ifc.sda = 1;
+    #5 ifc.sda = 0;
+  end
+  
+    always @(negedge ifc.scl) begin
+     bit_count = bit_count + 1;
+
+    if (rw_bit == 0 && bit_count < 7) begin
+      ifc.sda = address[6 - bit_count];
+    end
+    
+    else if (rw_bit == 0 && bit_count == 7) begin
+      ifc.sda = rw_bit;
+    end
+    
+    else if (rw_bit == 0 && bit_count == 8) begin
+      ack = ifc.sda;
+    end
+    
+    else if (rw_bit == 0 && bit_count > 8 && bit_count < 17) begin
+      ifc.sda = data_1_address[16 - bit_count];
+    end
+    
+    else if (rw_bit == 0 && bit_count == 17) begin
+      ack = ifc.sda;
+    end
+    
+    else if (rw_bit == 0 && bit_count > 17 && bit_count < 26) begin
+      ifc.sda = data_1[25 - bit_count];
+    end
+    
+    else if (rw_bit == 0 && bit_count == 26) begin
+      ack = ifc.sda;
+    end
+    
+    else if (rw_bit == 0 && bit_count == 27) begin
+      stop_condition();   
+    end
+    
+    else if (rw_bit == 0 && bit_count == 28) begin
+      start_condition ();     
+//       $display("%0p",bit_count);
+    end
+      
+      
+      //b
+      
+   if (rw_bit == 0 && bit_count > 28 && bit_count < 36) begin
+     ifc.sda = address[35 - bit_count];
+      //$display("address: %b", ifc.sda);
+    end
+    
+    else if (rw_bit == 0 && bit_count == 36) begin
+      ifc.sda = rw_bit;
+//       $display("rw_bit: %b", ifc.sda);
+    end
+    
+    else if (rw_bit == 0 && bit_count == 37) begin
+      ack = ifc.sda;
+    end
+    
+    else if (rw_bit == 0 && bit_count > 37 && bit_count < 46) begin
+      ifc.sda = data_2_address[45 - bit_count];
+    end
+    
+    else if (rw_bit == 0 && bit_count == 46) begin
+      ack = ifc.sda;
+    end
+    
+    else if (rw_bit == 0 && bit_count > 46 && bit_count < 55) begin
+      ifc.sda = data_2[54 - bit_count];
+    end
+    
+    else if (rw_bit == 0 && bit_count == 55) begin
+      ack = ifc.sda;
+    end
+    
+    else if (rw_bit == 0 && bit_count == 56) begin
+      stop_condition ();
+//       bit_count = bit_count + 1;
+    end
+      
+      
+         //read  
+      else if (rw_bit==0 && bit_count==57) begin
+        start_condition();
+        rw_bit=1;
+      end
+      
+   
+      else if (rw_bit == 1&& bit_count > 57 && bit_count < 65) begin
+        ifc.sda = address[64 - bit_count];
+      end
+          
+      else if (rw_bit == 1 && bit_count == 65) begin
+      ifc.sda = rw_bit;
+    end
+      else if (rw_bit == 1 && bit_count == 66) begin
+      ack = ifc.sda;
+    end
+      else if (rw_bit==1 && bit_count>66 && bit_count<76) begin
+        received_result = {received_result[6:0], ifc.sda};
+         $display("After read operation, received result --[%0p]",received_result);
+      end
+    end
+endmodule
+  module i2c_slave(i2c_if ifc);
+  bit [6:0] device_id = 7'b0000001;  // master er address tai
+  bit [6:0] slave_id;
+  
+  bit [7:0] received_data_1, received_data_2, add_result;
+  bit [7:0] received_data_1_address, received_data_2_address;
+  
+  integer bit_count = -1;
+  
+  bit rw_operation;
+  bit data_ready;
+  bit valid_transaction;
+  bit start, stop;
+  
+  always @(negedge ifc.sda or posedge ifc.sda) begin
+    if (ifc.scl) begin
+      fork
+        start <= (ifc.sda == 0);
+        stop  <= (ifc.sda == 1);
+      join
+    end
+  end
+   always @(negedge ifc.scl) begin
+       bit_count = bit_count + 1;
+    ////////////////////////// A ////////////////////////////////////
+     if (start && !data_ready && bit_count < 7) begin
+        slave_id = {slave_id[5:0], ifc.sda};
+      end
+
+     else if (!data_ready && bit_count == 7) begin
+        rw_operation = ifc.sda;
+      end
+
+     else if (!data_ready && bit_count == 8) begin
+        if (device_id == slave_id) begin
+          ifc.sda = 1'b0;
+        end 
+//         else begin
+//           $display("ERROR: Slave ID (%b) did not match Device ID (%b). Stopping execution.", slave_id, device_id);
+//           valid_transaction = 1; // Set flag to invalid
+//           bit_count = 0;
+//         end
+      end
+  
+
+      else if (valid_transaction == 0 && !data_ready && bit_count > 8 && bit_count < 17) begin
+        received_data_1_address = {received_data_1_address[6:0], ifc.sda};
+      end
+
+      else if (valid_transaction == 0 && !data_ready && bit_count == 17) begin
+        ifc.sda = 1'b0;
+      end
+
+      else if (valid_transaction == 0 && !data_ready && bit_count > 17 && bit_count < 26) begin
+   received_data_1 = {received_data_1[6:0], ifc.sda};
+      end
+
+      else if (valid_transaction == 0 && !data_ready && bit_count == 26) begin
+        ifc.sda = 1'b0;
+      end
+
+        else if  (valid_transaction == 0 && !data_ready && bit_count == 27) begin
+          $display("sda stops at %0p", $time);
+      end
+     else if  (valid_transaction == 0 && !data_ready && bit_count == 28) begin
+       $display("sda again starts at %0p", $time);
+      end
+     
+     
+     //b
+     
+  else if ( !data_ready && bit_count > 28 && bit_count < 36) begin
+        slave_id = {slave_id[5:0], ifc.sda};
+      end
+
+      else if (!data_ready && bit_count == 36) begin
+        rw_operation = ifc.sda;
+      end
+
+      else if (!data_ready && bit_count == 37) begin
+        if (device_id == slave_id) begin
+          ifc.sda = 1'b0;
+        end 
+//         else begin
+//           $display("ERROR: Slave ID (%b) did not match Device ID (%b). Stopping execution.", slave_id, device_id);
+//           valid_transaction = 1; // Set flag to invalid
+//           bit_count = 0;
+//         end
+      end
+
+      else if (valid_transaction == 0 && !data_ready && bit_count > 37 && bit_count < 46) begin
+        received_data_1_address = {received_data_1_address[6:0], ifc.sda};
+      end
+
+      else if (valid_transaction == 0 && !data_ready && bit_count == 46) begin
+        ifc.sda = 1'b0;
+      end
+
+      else if (valid_transaction == 0 && !data_ready && bit_count > 46 && bit_count < 55) begin
+        received_data_2 = {received_data_2[6:0], ifc.sda};
+      end
+
+      else if (valid_transaction == 0 && !data_ready && bit_count == 55) begin
+        ifc.sda = 1'b0;
+      end
+
+      else if  (valid_transaction == 0 && !data_ready && bit_count == 56) begin
+        $display("data sent complete!");
+      end
+     
+     //read
+     
+     
+     else if  (valid_transaction == 0 && !data_ready && bit_count == 57) begin
+        $display("starting read operation!");
+      end
+     else if ( !data_ready && bit_count > 57 && bit_count < 65) begin
+        slave_id = {slave_id[5:0], ifc.sda};
+      end
+
+     else if (!data_ready && bit_count == 65) begin
+        rw_operation = ifc.sda;
+      end
+
+     else if (!data_ready && bit_count == 66) begin
+        if (device_id == slave_id) begin
+          ifc.sda = 1'b0;
+        end 
+     end
+
+     else if (!data_ready && bit_count> 66 &&  bit_count<76 && rw_operation==1) begin
+         add_result=received_data_1 +received_data_2;
+//          $display ("%0p",add_result);
+         ifc.sda= add_result[74-bit_count];
+         
+       end
+     end
+     
+endmodule
+
+interface i2c_if;
+  logic scl;
+  logic sda;
+  modport master (output scl, inout sda);
+  modport slave (input scl, inout sda);
+endinterface

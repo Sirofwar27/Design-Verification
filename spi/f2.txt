@@ -45,19 +45,25 @@ module spi_master(spi_if intf);
     intf.cs=1;
     clk_en= 0;
     
-    #20 intf.cs = 0; // Activate CS
-    clk_en = 1; // Start clock generation
-    
-    for (i = 0; i < 11; i++) begin
-       @(posedge intf.clk);
-      intf.mosi = data_to_send[i];
-     
-    end
-    
-    #170 clk_en = 0; // Stop clock after sending
-     intf.cs = 1; // Deactivate CS
-  endtask
+   #20 intf.cs = 0; 
+    clk_en = 1; 
+    fork
+       
+        begin
+          for (i = 0; i <  11; i++) begin
+                @(posedge intf.clk);
+                intf.mosi = data_to_send[i];
+            end
+        end
 
+        // Exact CS Timing Control
+        begin
+            #170;     
+            clk_en = 0; 
+            intf.cs = 1; 
+        end
+    join
+endtask
   task receive_data();
     if (!intf.cs) begin
 

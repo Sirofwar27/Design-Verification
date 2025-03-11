@@ -1,0 +1,57 @@
+//assertions
+
+/ module tb;
+//   bit clk, req, ack;
+
+//   // Generate Clock
+//   always #5 clk = ~clk; // 10ns clock cycle
+
+//   // Stimulus: Generate req and ack signals
+//   initial begin
+//     req = 0; ack = 0;
+//     #10 req = 1;  // Request at time = 10ns
+//     #15 ack = 1;  // Acknowledge at time = 25ns (3 cycles later, valid)
+//     #30 req = 1;  // Request at time = 55ns
+//     #50 ack = 1;  // Acknowledge at time = 105ns (5 cycles later, invalid!)
+//     #100 $finish;
+//   end
+
+//   // Assertion: ACK should follow REQ within 1 to 4 cycles
+//   property p_req_ack;
+//     @(posedge clk) req |-> ##[1:4] ack;
+//   endproperty
+
+//   assert property(p_req_ack)
+//     else $error("ASSERTION FAILED at time %0t: ACK did not follow REQ within 1-4 cycles!", $time);
+// endmodule
+
+module fsm_tb;
+  typedef enum {IDLE, FETCH, EXECUTE, WRITEBACK} state_t;
+  state_t state, next_state;
+  bit clk, reset;
+
+  // Generate Clock
+  always #5 clk = ~clk; // 10ns clock cycle
+
+  // FSM Simulation
+  initial begin
+    state = IDLE;
+    #10 state = FETCH;
+    #10 state = EXECUTE;
+    #10 state = WRITEBACK;
+    #10 state = IDLE;
+    #10 state = EXECUTE; // INVALID transition (should go to FETCH first!)
+    #100 $finish;
+  end
+
+  // Property: FSM must transition in the correct order
+  property p_fsm_order;
+    @(posedge clk) state == IDLE |-> next_state == FETCH;
+    @(posedge clk) state == FETCH |-> next_state == EXECUTE;
+    @(posedge clk) state == EXECUTE |-> next_state == WRITEBACK;
+    @(posedge clk) state == WRITEBACK |-> next_state == IDLE;
+  endproperty
+
+  assert property(p_fsm_order)
+    else $error("ASSERTION FAILED at time %0t: Invalid FSM transition!", $time);
+endmodule

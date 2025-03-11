@@ -1,0 +1,271 @@
+//my master i2c fsm
+
+
+// Code your testbench here
+// or browse Examples
+module tb();
+  logic scl; 
+  wire sda;
+  pullup(sda);
+  
+  master m(scl, sda);
+  
+  // Instantiate your DUTs here
+  dut_ADD add(scl, sda);
+//   dut_SUB sub(scl, sda);
+//   dut_INV inv(scl, sda);
+//   dut_OR b_or(scl, sda);
+	
+endmodule
+
+module master(output logic scl, inout sda);
+//   typedef enum {IDLE, START, W_ADDR, ACK, SEND_DF1, W_DATA,STOP} state_t;
+  typedef enum {IDLE, START, W_ADDR, ACK, SEND_DF1, ACK1, SEND_DF2, ACK2, READ_REQUEST,W_ADDR_READ,  ACK_R,R_DATA, STOP} state_t;
+  typedef enum {NA, DF1, DF2, eod} data_state_t;
+  state_t state;
+  
+  data_state_t data_state;
+  // Change this next three lines only.
+  opcode_t op = ADD;
+  bit[7:0] a = 8'h2A;
+  bit[7:0] b = 8'h05;
+  /////////////////////////////////////
+  
+  
+  
+//   typedef enum {IDLE,ADDR_SEND,DATA_SEND,DATA_RECV} state_t;
+//   state_t state;
+  logic drive;
+  bit[6:0] ID;
+
+//   bit[6:0] addr=7'b1001001;
+  bit RW=0;
+  bit[7:0] df1;
+  bit [7:0] df2;
+  bit[7:0] received_data;
+  bit[6:0] addr;
+
+  bit[8:0] count;
+  bit scl_en;
+  
+  bit[7:0] res;
+  assign sda = drive;
+  
+  initial begin
+    scl=1'b1;
+  forever #5 scl =~ scl;
+  end
+  
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+  
+   always @(sda) begin
+    if(scl) begin 
+      if(sda) state <= IDLE;
+      else begin 
+        state <= START;
+        state <= W_ADDR;
+      end
+
+      data_state <= NA;
+      count <= 1'b0;
+//       df1 <= 1'b0;
+//       df2 <= 1'b0;
+      
+    end
+  end
+  
+    initial begin
+      
+    if(op == ADD) ID <= 7'h1;
+    else if(op == SUB) ID <= 7'h3; 
+    else if(op == INV) ID <= 7'h7;
+    else if(op == OR) ID <= 7'hF;
+  end
+  
+  initial begin
+    state<=IDLE;
+    drive=1'b1;
+//     count=0;
+    #2 drive=0;
+//     state=START;
+    #1000;
+    $finish;
+  end
+  
+
+     initial begin
+      df1 = 8'hA;
+      df2 = a;
+      drive <= #286 1'b0;
+      df1 <= #291 8'hB;
+      df2 <= #292 8'h5;
+      drive <= #292 1'b1;
+      drive <= #293 1'b0;
+//       drive<= #590 1'b1;
+//       drive <=#592 1'b0;
+    end
+
+  
+  
+  
+  always @(scl) begin
+    if(!scl) begin
+      count<=count+1;
+//       $display("%0p",count);
+    end
+    case(state) 
+      IDLE: begin
+        drive <= 1'bz;
+        count <= 1'b0;
+
+        addr <= 1'b0;
+//         df1 <= 1'b0;
+//         df2 <= 1'b0;
+      end
+
+      START: begin
+        count <= 1'b0;
+        drive<= 1'b0;
+      end
+
+
+  W_ADDR: begin
+    if (!scl) begin
+      if (count <= 6) begin
+        drive <= ID[6 - count]; // Send address bit by bit (MSB first)
+      end else if (count == 7) begin
+        drive <= RW; 
+      end 
+      else if (count>7) begin
+        drive<= 1'bz;
+        state<= ACK;
+      end
+    end
+  end
+
+   ACK: ACK: begin
+    if (scl) begin
+        if (sda == 0) begin 
+            $display("Master: ACK received from Slave.");
+         
+//              df1=8'hA;
+             RW=0;
+          state <= SEND_DF1;
+        end else begin 
+            $display("Master: NACK received, stopping communication.");
+            state <= STOP;
+        end
+    end
+     count <= 0;
+end
+      
+   SEND_DF1: begin
+     if(!scl) begin
+      if (count < 8) begin
+         drive <= df1[7 - count]; 
+      end else begin
+        drive <=1'b0;
+        state <= ACK1;
+     end
+   end
+   end
+     
+  ACK1: begin
+    if (scl) begin
+        if (sda == 0) begin // Slave ACKs
+          $display("Master: ACK received from Slave after df1");
+          state <= SEND_DF2;
+        end else begin
+           $display("Master: NACK received, stopping communication.");
+       
+        end
+        count <= 0;
+      end
+  end
+     
+     SEND_DF2: begin
+      if(!scl) begin
+        if (count < 8) begin
+          drive <= df2 [7-count];
+        end else begin
+            drive <=1'bz;
+        state <= ACK2 ;      
+     end
+     end
+     end
+     
+     
+     ACK2: begin
+       if(scl) begin
+        if (sda == 0) begin
+          $display("Master: ACK received from Slave after df2");
+          state<= R_DATA;
+        end else begin
+          $display("Master: NACK received, stopping communication.");
+        end
+        count <= 0;
+      end
+     end
+      
+// READ_REQUEST: begin
+//     RW = 1; 
+//     state <= W_ADDR_READ; 
+// end
+// W_ADDR_READ: begin
+//     if (!scl) begin
+//         if (count <= 6) begin
+//             drive <= ID[6 - count];
+//         end else if (count == 7) begin
+//             drive <= RW; 
+//         end else if (count > 7) begin
+//             drive <= 1'b0; 
+//             state <= ACK_R;
+//         end
+//     end
+// end
+
+// ACK_R: begin
+//     if (scl) begin
+//         if (sda == 0) begin
+//             $display("Master: ACK received from Slave for read request.");
+//             count = 0;
+//             received_data = 0; // Clear received data
+//             state <= R_DATA;
+//         end else begin
+//             $display("Master: NACK received, stopping communication.");
+//             state <= STOP;
+//         end
+//     end
+// end
+
+   R_DATA: begin
+    if (scl) begin
+        if (count < 8) begin
+            received_data[7 - count] <= sda; 
+            $display("Master: Received Result = %0h", received_data);
+            state<=STOP;
+        end
+    end
+end
+  
+
+     
+     
+     
+
+    STOP: begin
+        drive <= 0; // Pull SDA low
+        #2 drive <= 1'b1; // Stop condition (SDA goes high)
+        state <= IDLE;
+      end
+
+      default : state <= IDLE; 
+    endcase
+    
+    
+  end
+ 
+endmodule

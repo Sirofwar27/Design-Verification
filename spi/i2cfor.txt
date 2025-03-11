@@ -1,0 +1,210 @@
+//i2cfor
+
+module tb_i2c_master;
+  i2c_if i2c_bus();
+  i2c_master uut (.ifc(i2c_bus));
+  i2c_slave slave (.ifc(i2c_bus));
+  bit [6:0] address;
+  bit [7:0] data_1,data_2,data_1_address,data_2_address,received_result;
+
+  
+  
+  initial begin
+    $dumpfile("i2c_test.vcd");
+    $dumpvars;
+    
+    address = 7'b1111111;  // Slave Address
+    data_1_address = 8'b00000011;
+    data_2_address = 8'b00000100;
+    data_1 = 8'b00001001;
+    data_2 = 8'b00000101;
+
+    uut.start_condition();
+    
+    
+    uut.write_sequence(data_1_address, data_1); // Write Data-1
+    
+    uut.write_sequence(data_2_address, data_2); // Write Data-2
+  
+    uut.read_sequence(data_2_address, received_result); // Read Data-2
+
+    $display("Read Data-2: %b", received_result);
+    #100;
+    $finish;
+  end
+    
+endmodule
+interface i2c_if;
+  logic scl;
+  logic sda;
+  modport master (output scl, inout sda);
+  modport slave (input scl, inout sda);
+endinterface
+
+
+module i2c_slave(i2c_if ifc);
+  bit [6:0] device_id = 7'b0000001;  // Slave Address
+  bit [6:0] received_slave_id;
+  bit [7:0] received_data_address;
+  bit [7:0] received_data;
+  bit [7:0] memory [0:255];  // Simulated memory to store data
+  bit rw_operation;
+  integer bit_count;
+  bit start_detected, stop_detected;
+
+  // 🛠 Task: Detect Start Condition
+  always @(negedge ifc.sda) begin
+    if (ifc.scl) begin
+      start_detected = 1;
+      bit_count = 0;
+    end
+  end
+
+  // 🛠 Task: Detect Stop Condition
+  always @(posedge ifc.sda) begin
+    if (ifc.scl) begin
+      stop_detected = 1;
+    end
+  end
+
+  // 🛠 Task: Slave Operation
+  always @(negedge ifc.scl) begin
+    #1;
+
+    if (start_detected && bit_count < 7) begin
+      received_slave_id = {received_slave_id[5:0], ifc.sda}; // Shift Address
+      bit_count = bit_count + 1;
+    end
+
+    else if (bit_count == 7) begin
+      rw_operation = ifc.sda; // Read/Write Bit
+      bit_count = bit_count + 1;
+    end
+
+    else if (bit_count == 8) begin
+      if (received_slave_id == device_id) begin
+        ifc.sda = 0; // Send ACK
+        bit_count = bit_count + 1;
+      end else begin
+        $display("ERROR: Address Mismatch! Expected: %b, Received: %b", device_id, received_slave_id);
+        bit_count = 0; // Reset on mismatch
+      end
+    end
+
+    // 🛠 Receiving Data Address
+    else if (bit_count > 8 && bit_count < 17) begin
+      received_data_address = {received_data_address[6:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+
+    else if (bit_count == 17) begin
+      ifc.sda = 0; // Send ACK
+      bit_count = bit_count + 1;
+    end
+
+    // 🛠 Receiving Data (Write Operation)
+    else if (rw_operation == 0 && bit_count > 17 && bit_count < 26) begin
+      received_data = {received_data[6:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+
+    else if (rw_operation == 0 && bit_count == 26) begin
+      ifc.sda = 0; // Send ACK
+      memory[received_data_address] = received_data; // Store in memory
+      $display("Slave Stored Data: %b at Address: %b", received_data, received_data_address);
+      bit_count = 0;
+    end
+
+    // 🛠 Sending Data (Read Operation)
+    else if (rw_operation == 1 && bit_count > 8 && bit_count < 17) begin
+      ifc.sda = memory[received_data_address][15 - bit_count]; // Send Data
+      bit_count = bit_count + 1;
+    end
+
+    else if (rw_operation == 1 && bit_count == 19) begin
+      ifc.sda = 0; // Send ACK
+      $display("Slave Sent Data: %b", memory[received_data_address]);
+      bit_count = 0;
+    end
+  end
+endmodule
+`include "interface.sv"
+`include "add_slave.sv"
+
+module i2c_master(i2c_if ifc);
+  bit [7:0] data_1_address;
+  bit [7:0] data_2_address;
+  bit [7:0] data_1;
+  bit [7:0] data_2;    
+  bit [6:0] address; 
+  bit rw_bit = 1'b0;
+  integer bit_count = 0;
+  bit [7:0] received_result;
+
+  initial begin
+    ifc.scl = 1;
+    forever #10 ifc.scl = ~ifc.scl;
+  end
+
+  task start_condition();
+    ifc.sda = 1;
+    #4 ifc.sda = 0;
+  endtask
+  
+  
+  task stop_condition();
+    ifc.sda = 0;
+    #4 ifc.sda = 1;
+  endtask
+
+ 
+  task send_slave_address(bit rw);
+    integer i;
+    for (i = 0; i <= 6; i++) begin
+      ifc.sda = address[i];
+     
+    end
+    ifc.sda = rw;  // Send R/W bit
+    
+  endtask
+
+
+  task send_data(input bit [7:0] data);
+    integer i;
+    for (i = 7; i >= 0; i = i - 1) begin
+      ifc.sda = data[i];
+     
+    end
+  endtask
+
+  
+  task read_data(output bit [7:0] data);
+    integer i;
+    for (i = 7; i >= 0; i = i - 1) begin
+      data[i] = ifc.sda;
+     
+    end
+  endtask
+
+
+  task write_sequence(bit [7:0] data_address, bit [7:0] data_value);
+    start_condition();                 // Start Condition
+    send_slave_address(1'b0);          // Send Slave Address (Write Mode)
+    send_data(data_address);           // Send Data Address
+    send_data(data_value);             // Send Data Value
+    stop_condition();                  // Stop Condition
+  endtask
+
+
+  task read_sequence(bit [7:0] data_address, output bit [7:0] data_value);
+    start_condition();                 // Start Condition
+    send_slave_address(1'b0);          // Send Slave Address (Write Mode)
+    
+    read_data(data_value);             // Read Data Value
+    stop_condition();                  // Stop Condition
+  endtask
+    
+    
+
+  
+endmodule

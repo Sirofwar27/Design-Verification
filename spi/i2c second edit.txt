@@ -1,0 +1,217 @@
+
+ module i2c_master(
+    inout logic sda,    // Serial Data Line (Bidirectional)
+    output logic scl    // Serial Clock Line
+);
+    logic clk;
+  logic [7:0] data_1=8'b00001001; // 9
+  logic [7:0] data_2=8'b00000101 ; // 5
+  logic [6:0] address=7'b0000001; // Slave address
+    logic rw_bit = 1'b0; // Write operation
+    logic start_condition;
+    logic stop_condition;
+    logic data_transmitting;
+    logic ack_received;
+    integer bit_count = 0;
+    logic sda_out, sda_enable;
+    logic [7:0] received_result;
+ 
+  
+  
+  initial begin
+    scl=1;
+  
+    forever #10 scl=~scl;
+  end
+
+  
+ assign sda = sda_enable ? sda_out : 1'bz; 
+  
+  
+  
+      
+  initial begin
+    sda_enable=1;
+    sda_out=1;
+    #5 sda_out=0;
+//     sda =1;
+//     @(negedge scl);
+//      sda_out=0;
+//     #5 sda =0;
+  end
+  
+
+   
+    
+
+  always @(negedge scl) begin
+    #1;
+//     if (scl==1) begin
+        if (bit_count < 7) begin
+            sda_out = address[6 - bit_count]; 
+            sda_enable = 1'b1;
+            bit_count = bit_count + 1;
+        
+          $display("sent -- %0p",sda_out);
+        
+        end else if (bit_count == 7) begin
+            sda_out = rw_bit; 
+            sda_enable = 1'b1;
+            bit_count = bit_count + 1;
+        end else if (bit_count == 8) begin
+            sda_enable = 1'b0; 
+            bit_count = bit_count + 1;
+        end
+   
+      else if (bit_count>8 && bit_count < 17) begin
+          sda_out = data_1[16 - bit_count];
+            sda_enable = 1'b1;
+            bit_count = bit_count + 1;
+        
+        end else if (bit_count == 17) begin
+            sda_enable = 1'b0; 
+            bit_count = bit_count + 1;
+       
+        end else if (bit_count>17 && bit_count < 26) begin
+            sda_out = data_2[25 - bit_count]; 
+            sda_enable = 1'b1;
+            bit_count = bit_count + 1;
+          
+        end else if (bit_count == 26) begin
+            sda_enable <= 1'b0; 
+            bit_count <= bit_count + 1;
+        
+          end 
+//           else if (bit_count == 27) begin
+//             bit_count <= 0; 
+          
+//         end else if (rw_bit == 1'b1 && bit_count < 8) begin
+//           received_result <= {received_result[6:0], sda};
+//             bit_count <= bit_count + 1;
+//             $display("Received Result: %b", received_result);
+//         end
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  end
+   
+endmodule  
+  
+  
+  
+  
+  
+ module tb_i2c_master;
+  
+    wire sda; // Change from logic to wire for bidirectional signal
+    wire scl; // Keep it as wire to be driven by master
+    
+    i2c_master uut (
+        .sda(sda),  // Wire for bidirectional communication
+        .scl(scl)
+    );
+
+    i2c_slave slave (
+        .scl(scl),
+        .sda(sda)  // Connecting the same SDA wire to the slave
+    );
+
+  initial begin
+    $dumpfile("lol.vcd");
+    $dumpvars;
+    #1000;
+    $finish;
+  end
+  
+  
+//   initial begin
+//     uut.trigger_start_condition();
+
+//   end
+  
+  
+  
+  
+  
+endmodule 
+  
+  
+// Code your design here
+  module i2c_slave(
+    input logic scl,   
+    inout logic sda   
+);
+    logic [6:0] device_id=7'b0000001;
+    logic [6:0] slave_id;
+    logic [7:0] received_data_1, received_data_2;
+    logic [7:0] result; 
+    logic data_ready;
+    integer bit_count = 0;
+    logic sda_out, sda_enable;
+    logic rw_operation;
+    
+//     assign sda = sda_enable ? sda_out : 1'bz; 
+        
+    
+    always @(negedge scl) begin
+   #2;
+        if (bit_count < 7) begin
+        
+          slave_id = {slave_id[5:0], sda}; 
+            bit_count = bit_count + 1;
+          $display("rcv -- %0b",slave_id);
+        
+        end else if(bit_count ==7) begin
+          rw_operation = sda_out;
+          bit_count<=bit_count+1;
+          
+        end else if (bit_count == 8) begin
+          if (device_id == slave_id) begin
+                sda_out = 1'b0; 
+                sda_enable = 1'b1;
+            end
+            bit_count = bit_count + 1;
+          
+        end else if (bit_count>8 && bit_count < 17) begin
+            received_data_1 <= {received_data_1[6:0], sda}; 
+            bit_count <= bit_count + 1;
+          
+        end else if (bit_count == 17) begin
+            sda_out <= 1'b0; 
+            sda_enable <= 1'b1;
+            bit_count <= bit_count + 1;
+          
+        end else if (bit_count>17 && bit_count < 26) begin
+            received_data_2 <= {received_data_2[6:0], sda}; 
+            bit_count <= bit_count + 1;
+          
+        end else if (bit_count == 26) begin
+            result <= received_data_1 + received_data_2; 
+            data_ready <= 1'b1; 
+            sda_out <= 1'b0; 
+            sda_enable <= 1'b1;
+            bit_count <= bit_count+1 ;
+          
+        end 
+//       else if (data_ready && bit_count < 8) begin
+//             sda_out <= result[7 - bit_count]; 
+//             sda_enable <= 1'b1;
+//             bit_count <= bit_count + 1;
+//         end else begin
+//             sda_enable <= 1'b0;
+//         end
+      
+      
+      
+    end
+
+//     initial  $display("%0p",slave_id);
+   
+  endmodule

@@ -1,0 +1,171 @@
+// Code your testbench here
+// or browse Examples
+module i2c_master(
+    inout logic sda,    // Serial Data Line (Bidirectional)
+    output logic scl    // Serial Clock Line
+);
+    
+    logic [7:0] data_1 = 8'b00000101; // 5
+    logic [7:0] data_2 = 8'b00001001; // 9
+    logic [6:0] address = 7'b0000001; // Slave address
+    logic rw_bit = 1'b0; // Write operation
+    logic start_condition;
+    logic stop_condition;
+    logic data_transmitting;
+    logic ack_received;
+    integer bit_count = 0;
+    logic sda_out, sda_enable;
+    logic [7:0] received_result;
+    logic clk;
+     initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+     end
+    assign scl = clk; // Directly using system clock as I2C clock
+    assign sda = sda_enable ? sda_out : 1'bz; // Tri-state buffer
+    
+    
+    always_ff @(posedge clk ) begin
+        if (start_condition) begin
+            sda_out <= 1'b0;
+            sda_enable <= 1'b1;
+        end else if (stop_condition) begin
+            sda_out <= 1'b1;
+            sda_enable <= 1'b1;
+        end else if (bit_count < 7) begin
+            sda_out <= address[6 - bit_count]; // Send 7-bit address first
+            sda_enable <= 1'b1;
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 7) begin
+            sda_out <= rw_bit; // Send Read/Write bit
+            sda_enable <= 1'b1;
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 8) begin
+            sda_enable <= 1'b0; // Release SDA for ACK from slave
+            bit_count <= bit_count + 1;
+        end else if (ack_received && bit_count < 17) begin
+          sda_out <= data_1[16 - bit_count]; // Send first data byte
+            sda_enable <= 1'b1;
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 17) begin
+            sda_enable <= 1'b0; // Release SDA for ACK from slave
+            bit_count <= bit_count + 1;
+        end else if (ack_received && bit_count < 26) begin
+            sda_out <= data_2[25 - bit_count]; // Send second data byte
+            sda_enable <= 1'b1;
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 26) begin
+            sda_enable <= 1'b0; // Release SDA for ACK from slave
+            bit_count <= 0;
+        end else if (rw_bit == 1'b1 && bit_count < 8) begin
+            received_result[7 - bit_count] <= sda; // Receive result byte
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 8) begin
+            $display("Received Result: %b", received_result);
+        end
+    end
+endmodule
+
+module i2c_slave(
+    input logic scl,   // Serial Clock Line from Master
+    inout logic sda    // Serial Data Line (Bidirectional)
+);
+    
+    logic [6:0] slave_address = 7'b0000001; // Example slave address
+    logic [7:0] received_data_1, received_data_2;
+    logic [7:0] result; // ALU result storage
+    logic data_ready;
+    integer bit_count = 0;
+    logic sda_out, sda_enable;
+    
+    assign sda = sda_enable ? sda_out : 1'bz; 
+    
+    always_ff @(negedge scl) begin
+        if (bit_count < 7) begin
+            received_data_1 <= {received_data_1[5:0], sda}; // Shift in address bits
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 8) begin
+            if (received_data_1[6:0] == slave_address) begin
+                sda_out <= 1'b0; // ACK if address matches
+                sda_enable <= 1'b1;
+            end
+            bit_count <= bit_count + 1;
+        end else if (bit_count < 16) begin
+            received_data_1 <= {received_data_1[6:0], sda}; // Shift in first data byte
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 17) begin
+            sda_out <= 1'b0; // ACK for first data byte
+            sda_enable <= 1'b1;
+            bit_count <= bit_count + 1;
+        end else if (bit_count < 25) begin
+            received_data_2 <= {received_data_2[6:0], sda}; // Shift in second data byte
+            bit_count <= bit_count + 1;
+        end else if (bit_count == 26) begin
+            result <= received_data_1 + received_data_2; // Perform addition operation
+            data_ready <= 1'b1; // Data reception complete
+            sda_out <= 1'b0; // ACK for second data byte
+            sda_enable <= 1'b1;
+            bit_count <= 0;
+        end else if (data_ready && bit_count < 8) begin
+            sda_out <= result[7 - bit_count]; // Send result MSB first
+            sda_enable <= 1'b1;
+            bit_count <= bit_count + 1;
+        end else begin
+            sda_enable <= 1'b0;
+        end
+    end
+endmodule
+// Code your design here
+module tb_i2c_master;
+    logic clk;
+    wire sda; // Change from logic to wire for bidirectional signal
+    wire scl; // Keep it as wire to be driven by master
+    
+    i2c_master uut (
+        .sda(sda),  // Wire for bidirectional communication
+        .scl(scl)
+    );
+
+    i2c_slave slave (
+        .scl(scl),
+        .sda(sda)  // Connecting the same SDA wire to the slave
+    );
+
+ 
+    
+    initial begin
+        // Start condition
+        uut.start_condition = 1;
+        #10 uut.start_condition = 0;
+        
+        // Send slave address and write bit
+        uut.address = 7'b0000001;
+        uut.rw_bit = 0;
+        #100;
+        
+        // Send first data
+        uut.data_1 = 8'b00000101;
+        #100;
+        
+        // Send second data
+        uut.data_2 = 8'b00001001;
+        #100;
+        
+        // Stop condition
+        uut.stop_condition = 1;
+        #10 uut.stop_condition = 0;
+        
+        // Read operation
+        uut.rw_bit = 1; // Read operation
+        #100;
+        
+        $stop;
+    end
+  
+    initial begin
+        $dumpfile("spi_waveform.vcd"); 
+        $dumpvars;
+        #400;
+        $finish;
+    end
+endmodule

@@ -1,0 +1,111 @@
+i2clol
+module i2c_slave(i2c_if ifc);
+  bit [6:0] device_id = 7'b0000001;  // master er address tai
+  bit [6:0] slave_id;          // extra nilam device_id er sthe match kore kina tar jnne
+  bit [7:0] received_data_1, received_data_2, add_result;
+  bit [7:0] received_data_1_address, received_data_2_address;
+  integer bit_count = 0;
+  bit rw_operation;
+  bit data_ready;
+  bit valid_transaction;
+  
+
+  always @(negedge ifc.scl) begin
+    #2;
+    //////////////////////////// A ////////////////////////////////////
+    if (!data_ready && bit_count < 7) begin
+      slave_id = {slave_id[5:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+    
+    else if (!data_ready && bit_count == 7) begin
+      rw_operation = ifc.sda;
+      bit_count <= bit_count + 1;
+    end
+    
+    else if (!data_ready && bit_count == 8) begin
+      if (device_id == slave_id) begin
+        ifc.sda = 1'b0;
+        bit_count = bit_count + 1;
+      end 
+      else begin
+//         $display("ERROR: Slave ID (%b) did not match Device ID (%b). Stopping execution.", slave_id, device_id);
+        valid_transaction = 1; // Set flag to invalid
+        bit_count = 0;
+      end
+  	end
+     
+    else if (valid_transaction == 0 && !data_ready && bit_count > 8 && bit_count < 17) begin
+      received_data_1_address = {received_data_1_address[6:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+    
+    else if (valid_transaction == 0 && !data_ready && bit_count == 17) begin
+      ifc.sda = 1'b0;
+      bit_count = bit_count + 1;
+    end
+    
+    else if (valid_transaction == 0 && !data_ready && bit_count > 17 && bit_count < 26) begin
+      received_data_1 = {received_data_1[6:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+    
+    else if (valid_transaction == 0 && !data_ready && bit_count == 26) begin
+      ifc.sda = 1'b0;
+      bit_count = bit_count + 1;
+    end
+    
+    else if (valid_transaction == 0 && !data_ready && bit_count == 27) begin
+      bit_count = 0;
+      
+    end
+    
+    //////////////////////////// B ////////////////////////////////////
+    if (!data_ready && bit_count < 7) begin
+      slave_id = {slave_id[5:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+    
+    else if (!data_ready && bit_count == 7) begin
+      rw_operation = ifc.sda;
+      bit_count <= bit_count + 1;
+    end
+    
+    else if (!data_ready && bit_count == 8) begin
+      if (device_id == slave_id) begin
+        ifc.sda = 1'b0;
+         bit_count = bit_count + 1;
+      end else begin
+//         $display("ERROR: Slave ID (%b) did not match Device ID (%b). Stopping execution.", slave_id, device_id);
+        valid_transaction = 1; // Set flag to invalid
+      bit_count = 0;
+      end
+  	end
+     
+    else if (valid_transaction == 0 && !data_ready && bit_count > 8 && bit_count < 17) begin
+      received_data_2_address = {received_data_2_address[6:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+    
+    else if (valid_transaction == 0 && !data_ready && bit_count == 17) begin
+      ifc.sda = 1'b0;
+      bit_count = bit_count + 1;
+    end
+    
+    else if (valid_transaction == 0 && !data_ready && bit_count > 17 && bit_count < 26) begin
+      received_data_2 = {received_data_2[6:0], ifc.sda};
+      bit_count = bit_count + 1;
+    end
+    
+    else if (valid_transaction == 0 && !data_ready && bit_count == 26) begin
+      ifc.sda = 1'b0;
+      bit_count = bit_count + 1;
+    end
+    
+//     else if (valid_transaction == 0 && !data_ready && bit_count == 27) begin
+//       bit_count = 0;
+//     end
+    
+    
+  end
+endmodule
