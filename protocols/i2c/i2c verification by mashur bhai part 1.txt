@@ -1,0 +1,241 @@
+//i2c verification by mashur bhai
+
+//interface, driver, generator, transaction, testbench
+
+
+`include "monitor.sv"
+
+interface i2c(input logic clk);
+  wire sda;
+  wire scl;
+  
+  logic drv_sda;
+  logic scl_en;
+  
+  assign scl = (scl_en && !clk)? clk:1'bz;
+  assign sda = (drv_sda)? 1'bz:1'b0;
+
+endinterface
+
+class generator;
+  transaction tr;
+  mailbox #(transaction) mbxg2d;
+  int count;
+  semaphore drvnext;
+  
+  function new(mailbox #(transaction) mbx);
+    this.mbxg2d = mbx;
+    tr = new();
+  endfunction
+  
+  task run();
+    repeat(count) begin;
+      assert(tr.randomize) else $display("randomization error");
+      mbxg2d.put(tr.copy);
+      tr.display("GEN");
+      drvnext.get(1);
+    end
+  endtask
+endclass
+
+
+class driver;
+  virtual i2c vif;
+  transaction tr;
+  bit[7:0] bitstream, capture;
+  
+  typedef enum{ADDR, WRITE, READ} drv_state_t;
+  drv_state_t drv_state;
+  
+  mailbox #(transaction) mbxg2d;
+  semaphore drvnext;
+  
+  function new(mailbox #(transaction) mbx);
+    this.mbxg2d = mbx;
+  endfunction
+  
+  task reset();
+    vif.drv_sda = 1;
+    vif.scl_en = 0;
+  endtask
+  
+  task start();
+    @(posedge vif.clk) vif.scl_en = 1;
+    #2 vif.drv_sda = 0;
+  endtask
+  
+  task stop();
+    vif.drv_sda = 0;
+    @(posedge vif.scl);
+    #2 vif.drv_sda = 1;
+    @(negedge vif.scl) vif.scl_en = 0;
+  endtask
+  
+  task run();
+    forever begin
+      drv_state = ADDR;
+      mbxg2d.get(tr);
+      start();
+      tr.display("DRV");
+      while(tr.q.size()>0) begin
+//         $display("%0p", tr);
+        bitstream = tr.q.pop_front();
+//         $display("%0x", bitstream);
+        for(int i=0; i<=7; i++) begin
+          @(negedge vif.scl) vif.drv_sda = (bitstream[7-i])? 1'b1:1'b0;
+        end
+        
+        if(drv_state == ADDR && bitstream[0] == 1) drv_state = READ;
+        else drv_state = WRITE;
+//         $display("%0p", drv_state);
+        @(negedge vif.scl) vif.drv_sda = 1'b1;
+		@(posedge vif.scl) if(vif.sda) break;
+        if(drv_state == READ) begin
+          repeat(8) @(posedge vif.scl) capture = (capture << 1) | vif.sda;
+//           $display("[DRV] Read -> %0p", capture);
+          @(posedge vif.scl) if(vif.sda) break;
+        end
+      end
+      stop();
+      drvnext.put(1);
+    end
+  endtask
+endclass
+
+module tb();
+  logic clk = 0;
+  always #5 clk = ~clk;
+  
+  i2c inf(clk);
+  pullup(inf.scl);
+  pullup(inf.sda);
+  
+  wire tb_sda, tb_scl; // for data visualization only
+  assign tb_sda = inf.sda;
+  assign tb_scl = inf.scl;
+  
+  dut_OR b_or(inf.scl, inf.sda);
+  dut_ADD add(inf.scl, inf.sda);
+  dut_SUB sub(inf.scl, inf.sda);
+
+  generator gen;
+  driver drv;
+  monitor mon;
+  scoreboard sco;
+  
+  semaphore drvnext;
+  
+  mailbox #(transaction) mbxg2d, mbxm2s;
+  
+  initial begin
+    mbxg2d = new();
+    mbxm2s = new();
+    
+    drvnext = new();
+    
+    gen = new(mbxg2d);
+    gen.count = 100;
+    gen.drvnext = drvnext;
+    
+    drv = new(mbxg2d);
+    drv.vif = inf;
+    drv.drvnext = drvnext;
+    
+    
+    mon = new(mbxm2s);
+    mon.vif = inf;
+    
+    sco = new(mbxm2s);
+  end
+  
+  initial begin
+    drv.reset();
+    fork
+      gen.run();
+      drv.run();
+      mon.run();
+      sco.run();
+      
+      #20000 $finish;
+    join_none
+  end
+  
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars();
+  end
+endmodule
+
+
+class transaction;
+  rand bit[7:0] slave_addr;
+  rand bit[7:0] data_addr;
+  rand bit[7:0] data;
+  bit[7:0] q[$];
+  
+  constraint c_slave_addr 
+  { 
+    slave_addr dist 
+    {
+      8'h02 := 40,
+      8'h03 := 80,
+      
+      8'h06 := 40,
+      8'h07 := 80,
+      
+      8'h0E := 40,
+      8'h0F := 80,
+      
+      8'h1E := 40,
+      8'h1F := 80,
+      
+      8'hAA := 20
+    };
+  }
+  
+  constraint c_data_addr 
+  {
+    data_addr dist
+    {
+      8'h0A := 40, 
+      8'h0B := 40, 
+      8'h0F := 20
+    };
+  }
+  
+  constraint c_order
+  {
+  	solve slave_addr before data;
+    solve data_addr before data; 
+  }
+  
+  function void display(string tag);
+    string op;
+    if(slave_addr[7:1] == 8'h1) op = "ADD (01)";
+    else if(slave_addr[7:1] == 8'h3) op = "SUB (03)";
+    else if(slave_addr[7:1] == 8'h7) op = "INV (07)";
+    else if(slave_addr[7:1] == 8'hF) op = "OR (0F)";
+    else if(slave_addr[7:1] == 8'h55) op = "nul";
+    $display("[%0s]: Slave Addr: %0s, R/W: %0s, Data_addr: %0x, Data: %0x", 
+             tag,
+             op,
+             slave_addr[0]? "R (1)":"W (0)",
+             data_addr[3:0],
+             data
+            );
+  endfunction
+  
+  function transaction copy();
+    q = {};
+    q.push_back(slave_addr);
+    q.push_back(data_addr);
+    q.push_back(data);
+    
+    copy = new();
+    copy.slave_addr = slave_addr;
+    copy.data_addr = data_addr;
+    copy.data = data;
+    copy.q = q;
+    
+  endfunction
+endclass

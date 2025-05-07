@@ -1,0 +1,157 @@
+//slave design by mashur bhai
+typedef enum bit[1:0] {ADD, SUB, INV, OR} opcode_t;
+
+module template #(parameter opcode_t op = ADD)(input scl,inout sda);
+  typedef enum {IDLE, START, R_ADDR, ACK, R_DATA, W_DATA} state_t;
+  typedef enum {NA, DF1, DF2, eod} data_state_t;
+  state_t state;
+  
+  data_state_t data_state;
+
+  bit[6:0] ID;
+
+  bit[6:0] addr;
+  bit RW;
+  bit[7:0] df1, df2, a, b, res; 
+
+  bit[8:0] count;
+
+  logic drive;
+
+  assign sda = drive;
+  if(op == ADD) assign res = a+b;
+  else if(op == SUB) assign res = a-b;
+  else if(op == INV) assign res = ~a;
+  else if(op == OR) assign res = 8'h1 & |b; 
+  
+  initial begin
+    state <= IDLE;
+    drive <= 1'bz;
+	a <= 8'h5a;
+    
+    if(op == ADD) ID <= 7'h1;
+    else if(op == SUB) ID <= 7'h3; 
+    else if(op == INV) ID <= 7'h7;
+    else if(op == OR) ID <= 7'hF;
+  end
+
+  always @(sda) begin
+    if(scl && (state != ACK)) begin 
+      if(sda) state <= IDLE;
+      else state <= START;
+
+      data_state <= NA;
+      drive <= 1'bz;
+      count <= 1'b0;
+
+      addr <= 1'b0;
+      df1 <= 1'b0;
+      df2 <= 1'b0;
+    end
+  end
+
+  always @(scl) begin
+    if(scl) count <= count + 1;
+    case(state) 
+      IDLE: begin
+        drive <= 1'bz;
+        count <= 1'b0;
+
+        addr <= 1'b0;
+        df1 <= 1'b0;
+        df2 <= 1'b0;
+      end
+
+      START: begin
+        count <= 1'b0;
+
+        addr <= 1'b0;
+        df1 <= 1'b0;
+        df2 <= 1'b0;
+        state <= R_ADDR;
+      end
+
+      R_ADDR: begin
+        if(scl) begin
+          if(count <= 6) addr <= (addr << 1) | sda;
+          else if(count == 7) begin
+            RW <= sda;
+            if(addr == ID) state <= ACK;
+           end
+        end
+      end
+
+      ACK: begin
+        if(!scl) begin
+          if(drive == 0) begin
+            if(RW == 0) begin
+              state <= R_DATA;
+              drive <= 1'bz;
+            end
+            
+            else if(RW == 1) begin 
+              data_state <= eod;
+              state <= W_DATA;
+              drive <= (res[7])? 1'bz:0;
+            end
+            count <= 0;
+          end
+          else begin
+            drive <= 0;
+            if(data_state == DF2) begin
+              if(df1 == 8'hA) a <= df2;
+              else if(df1 == 8'hB) b <= df2;
+            end
+            if(df1 == 8'hF) begin
+              a <= 0;
+              b <= 0;
+            end
+            
+            if(data_state != eod) data_state <= data_state.next();
+          end
+        end
+      end
+
+      R_DATA: begin
+        if(scl) begin
+          if(count <= 7) begin
+            if(data_state == DF1) df1 <= (df1 << 1) | sda;
+            else if(data_state == DF2) df2 <= (df2 << 1) | sda;
+          end
+          if(count == 7) begin
+            state <= ACK;
+          end
+        end
+      end
+
+      W_DATA: begin
+        if(!scl) begin
+          if(count <= 7) drive <= (res[7-count])? 1'bz:0;
+          else if(count == 8) begin
+            RW <= 0;
+            state <= ACK;
+          end
+        end
+      end
+
+      default : state <= IDLE; 
+    endcase
+  end
+
+endmodule
+
+module dut_ADD(input scl,inout sda);
+  template #(ADD) add(scl, sda);
+endmodule
+
+module dut_SUB(input scl,inout sda);
+  template #(SUB) add(scl, sda);
+endmodule
+
+module dut_INV(input scl,inout sda);
+  template #(INV) add(scl, sda);
+endmodule
+
+module dut_OR(input scl,inout sda);
+  template #(OR) add(scl, sda);
+endmodule
