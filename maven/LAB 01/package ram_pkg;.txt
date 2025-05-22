@@ -1,0 +1,15 @@
+package ram_pkg;
+
+  // Import the UVM package so we can use UVM classes and macros
+  import uvm_pkg::*;  
+
+  // Include the UVM macros file (adjust the path as per your environment)
+  `include "uvm_macros.svh"
+
+  // Include your testbench definitions (like RAM_WIDTH, ADDR_SIZE, and addr_t enum)
+  `include "tb_defs.sv"
+
+  // Include the transaction class write_xtn
+  `include "write_xtn.sv"
+
+endpackage : ram_pkg

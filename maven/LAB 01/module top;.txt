@@ -1,0 +1,55 @@
+module top;
+
+  // ➤ Import UVM and RAM packages
+  import uvm_pkg::*;
+  import ram_pkg::*;
+
+  // ➤ Declare handles
+  write_xtn wr_copy_xtnh;
+  write_xtn wr_clone_xtnh;
+
+  // ➤ Declare dynamic array
+  write_xtn wr_xtnh[];
+
+  // ➤ Declare variable for number of transactions
+  int no_trans = 10;
+
+  initial begin
+    // ➤ Allocate array
+    wr_xtnh = new[no_trans];
+
+    // ➤ Generate 10 random transactions
+    for (int i = 0; i < no_trans; i++) begin
+      wr_xtnh[i] = write_xtn::type_id::create($sformatf("wr_xtnh[%0d]", i));
+      
+      if (!wr_xtnh[i].randomize()) begin
+        `uvm_error("TOP", $sformatf("Randomization failed for transaction %0d", i))
+      end else begin
+        `uvm_info("TOP", $sformatf("Transaction %0d:\n%s", i, wr_xtnh[i].convert2string()), UVM_LOW)
+      end
+    end
+
+    // ➤ Copy the 5th to 3rd (index 4 to 2)
+    wr_xtnh[2].copy(wr_xtnh[4]);
+
+    // ➤ Create and copy 3rd item into wr_copy_xtnh
+    wr_copy_xtnh = write_xtn::type_id::create("wr_copy_xtnh");
+    wr_copy_xtnh.copy(wr_xtnh[2]);
+
+    // ➤ Print wr_copy_xtnh in tree format
+    wr_copy_xtnh.print();
+
+    // ➤ Compare 5th and 3rd transactions
+    if (wr_xtnh[4].compare(wr_xtnh[2]))
+      `uvm_info("TOP", "Transaction[4] and Transaction[2] are SAME", UVM_LOW)
+    else
+      `uvm_info("TOP", "Transaction[4] and Transaction[2] are DIFFERENT", UVM_LOW)
+
+    // ➤ Clone 8th item (index 7) to wr_clone_xtnh
+    wr_clone_xtnh = wr_xtnh[7].clone();
+
+    // ➤ Print wr_clone_xtnh in line format
+    wr_clone_xtnh.print(uvm_default_line_printer);
+  end
+
+endmodule : top

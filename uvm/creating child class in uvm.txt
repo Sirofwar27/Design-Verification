@@ -1,0 +1,46 @@
+//creating child class in uvm
+
+`include "uvm_macros.svh"
+import uvm_pkg::*;
+class obj extends uvm_object; 
+//   `uvm_object_utils (obj)
+function new(string path = "obj");
+  super.new(path);
+endfunction
+  rand bit [3:0] a;
+  typedef enum bit [1:0] {s0,s1,s2,s3} state_type;
+  rand state_type state;
+  real temp=12.34;
+  string str;
+  
+  `uvm_object_utils_begin(obj)
+  `uvm_field_enum(state_type,state,UVM_DEFAULT);
+  `uvm_field_string(str, UVM_DEFAULT);
+  `uvm_field_real(temp,UVM_DEFAULT);
+  `uvm_object_utils_end
+  
+
+endclass
+
+
+
+class child extends uvm_object;
+ obj  o;
+  function new(string path="child");
+   super.new(path);
+   o=new("parent");
+ endfunction
+               
+`uvm_object_utils_begin(child);
+  `uvm_field_object(o,UVM_DEFAULT);
+`uvm_object_utils_end       
+endclass
+ module tb;
+  obj o;
+   child c;
+  initial begin 
+    c = new("lol"); 
+  c.randomize();
+    c.print(uvm_default_table_printer);
+end
+endmodule
