@@ -1,0 +1,39 @@
+//Extend ram_rand_wr_xtns from ram_wbase_seq;
+class ram_rand_wr_xtns extends ram_wbase_seq;
+
+  	// Factory registration using `uvm_object_utils
+	`uvm_object_utils(ram_rand_wr_xtns)
+
+	//------------------------------------------
+	// METHODS
+	//------------------------------i------------
+
+	// Standard UVM Methods:
+    extern function new(string name ="ram_rand_wr_xtns");
+    extern task body();
+	
+endclass
+//-----------------  constructor new method  -------------------//
+function ram_rand_wr_xtns::new(string name="ram_rand_wr_xtns");
+super.new(name);
+endfunction
+
+	  
+//-----------------  task body method  -------------------//
+	//Generate 10 transactions of type write_xtn 
+	//create req instance
+	//start_item(req)
+	//assert for randomization
+	//finish_item(req)
+ task ram_rand_wr_xtns::body();
+ write_xtn req;
+ repeat(10)begin
+	req=write_xtn::type_id::create("req");
+
+	start_item(req);
+	if(!req.randomize())begin
+		`uvm_error("SEQ","Randomization failed for write_xtn")
+	end
+ finish_item(req);
+ end
+ endtask
